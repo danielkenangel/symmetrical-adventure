@@ -1,0 +1,4 @@
+allowBuilds:
+  "electron@44.4.3": true
+  "esbuild@0.25.12": true
+  "esbuild@0.28.2": true

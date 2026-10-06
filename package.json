@@ -1,0 +1,43 @@
+{
+  "name": "state-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A small Electron kanban board that exercises the state-management patterns from the RFC appendix.",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "smoke": "electron-vite build && SMOKE=1 electron ."
+  },
+  "dependencies": {
+    "@tanstack/query-async-storage-persister": "^5.103.1",
+    "@tanstack/react-query": "^5.103.1",
+    "@tanstack/react-query-persist-client": "^5.103.1",
+    "mobx": "^6.13.2",
+    "mobx-react-lite": "^4.1.0",
+    "mobx-utils": "^6.0.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.5.5",
+    "@types/react": "~19.2.18",
+    "@types/react-dom": "~19.2.7",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "44.4.3",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-mobx": "^0.1.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^15.9.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.57.2",
+    "vite": "^7.3.6",
+    "vitest": "^3.1.4"
+  }
+}
