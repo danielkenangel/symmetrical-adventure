@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { CardChanged } from "../shared/api";
@@ -6,6 +7,8 @@ import { FakeServer } from "./fakeServer";
 import { runSmoke } from "./smoke";
 
 const smoke = process.env.SMOKE === "1";
+// Smoke runs get their own profile, so they never share storage (or its lock) with a real session.
+if (smoke) app.setPath("userData", join(tmpdir(), "state-demo-smoke"));
 
 function registerServer(server: FakeServer): void {
   ipcMain.handle("boards.list", () => server.listBoards());

@@ -9,9 +9,9 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint .",
-    "test": "vitest run",
-    "smoke": "electron-vite build && SMOKE=1 electron ."
+    "lint": "eslint . && pnpm arch",
+    "smoke": "electron-vite build && SMOKE=1 electron .",
+    "arch": "depcruise src --config .dependency-cruiser.mjs"
   },
   "dependencies": {
     "@tanstack/query-async-storage-persister": "^5.103.1",
@@ -29,6 +29,7 @@
     "@types/react": "~19.2.18",
     "@types/react-dom": "~19.2.7",
     "@vitejs/plugin-react": "^5.2.0",
+    "dependency-cruiser": "^18.5.0",
     "electron": "44.4.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.0",
@@ -37,7 +38,6 @@
     "globals": "^15.9.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.57.2",
-    "vite": "^7.3.6",
-    "vitest": "^3.1.4"
+    "vite": "^7.3.6"
   }
 }

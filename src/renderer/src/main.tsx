@@ -5,10 +5,10 @@ import { configure } from "mobx";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { AppProvider } from "./app/AppContext";
-import { AppRoot } from "./app/AppRoot";
-import { createQueryClient, persistCache } from "./data/queryClient";
-import { Shell } from "./views/Shell";
+import { composeApp, startApp } from "./app/compose";
+import { AppProviders } from "./app/Providers";
+import { ShellView } from "./features/shell";
+import { createQueryClient, persistCache } from "./platform/data/queryClient";
 
 configure({
   enforceActions: "always",
@@ -29,14 +29,16 @@ async function start(): Promise<void> {
   const queryClient = createQueryClient();
   // Restore the saved cache before anything subscribes, so the first paint can use it.
   if (storage) await persistCache(queryClient, storage);
-  const app = new AppRoot({ api: window.api, queryClient, storage, setTitle: (title) => (document.title = title) });
+  const app = composeApp({ api: window.api, queryClient, storage, setTitle: (title) => (document.title = title) });
+  const stop = startApp(app);
+  window.addEventListener("pagehide", stop);
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <AppProvider value={app}>
-          <Shell />
-        </AppProvider>
+        <AppProviders app={app}>
+          <ShellView />
+        </AppProviders>
       </QueryClientProvider>
     </StrictMode>,
   );
