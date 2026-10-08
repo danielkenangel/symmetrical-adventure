@@ -1,43 +1,40 @@
-import { observer } from "mobx-react-lite";
+import { memo } from "react";
 
-import type { BoardSummary } from "../../../../../shared/api";
 import { Badge, cls, SkeletonLines } from "../../../platform/ui/primitives";
-import { useBoards } from "../../boards";
-import { useNavigation } from "../../navigation";
-import { useShell } from "../shell";
+import { useBoardList, useTodoCount } from "../../boards";
+import { useLocation, useNavigationActions } from "../../navigation";
+import { useCurrentBoardId } from "../hooks";
 
-export const Sidebar = observer(function Sidebar() {
-  const { location } = useNavigation();
-  const boards = useBoards().list.data;
+export function Sidebar() {
+  const boards = useBoardList().data;
+  const settings = useLocation((s) => s.view === "settings");
+  const { showSettings } = useNavigationActions();
   return (
     <nav className="sidebar">
       <div className="sidebar-label">Boards</div>
-      {boards === undefined ? <SkeletonLines lines={3} /> : boards.map((summary) => <BoardLink key={summary.id} summary={summary} />)}
+      {boards === undefined ? <SkeletonLines lines={3} /> : boards.map(({ id, name }) => <BoardLink key={id} boardId={id} name={name} />)}
       <div className="sidebar-spacer" />
-      <button
-        type="button"
-        className={cls("nav-item", location.view === "settings" && "active")}
-        onClick={() => location.showSettingsAction()}
-      >
+      <button type="button" className={cls("nav-item", settings && "active")} onClick={showSettings}>
         Settings
       </button>
     </nav>
   );
-});
+}
 
 /**
- * A board entry with its TODO count. Reading the count subscribes to that board's query, so
- * every board in the sidebar stays live even while another board or Settings is on screen.
+ * A board entry with its Todo count. Reading the count loads that board, so every board in the
+ * sidebar stays live even while another board or Settings is on screen. A list row, so memo.
  */
-const BoardLink = observer(function BoardLink({ summary }: { summary: BoardSummary }) {
-  const { location } = useNavigation();
-  const board = useBoards().model(summary.id);
-  const shell = useShell();
-  const active = location.view === "board" && shell.model.currentBoard === board;
+const BoardLink = memo(function BoardLink({ boardId, name }: { boardId: string; name: string }) {
+  const { data: count, isPending } = useTodoCount(boardId);
+  const onBoardView = useLocation((s) => s.view === "board");
+  const current = useCurrentBoardId();
+  const active = onBoardView && current === boardId;
+  const { showBoard } = useNavigationActions();
   return (
-    <button type="button" className={cls("nav-item", active && "active")} onClick={() => location.showBoardAction(summary.id)}>
-      <span>{summary.name}</span>
-      <Badge count={board.todoCount} pending={board.isLoading} />
+    <button type="button" className={cls("nav-item", active && "active")} onClick={() => showBoard(boardId)}>
+      <span>{name}</span>
+      <Badge count={count ?? 0} pending={isPending} />
     </button>
   );
 });

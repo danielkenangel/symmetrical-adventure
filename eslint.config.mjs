@@ -1,39 +1,12 @@
 import js from "@eslint/js";
-import mobx from "eslint-plugin-mobx";
 import reactHooks from "eslint-plugin-react-hooks";
 import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-import { lazyDependencies } from "./architecture.mjs";
 import local from "./lint/index.mjs";
 
-/** The MobX guardrails from the RFC appendix (section 5g), applied for real. */
-const mobxHygiene = {
-  "no-restricted-syntax": [
-    "error",
-    {
-      selector: "ExpressionStatement > CallExpression[callee.name=/^(reaction|autorun|when)$/]",
-      message: "Keep the disposer: disposer.add(reaction(…)).",
-    },
-    {
-      // @action and @action.bound, on methods and on fields (`@action loadAction = async () => …`)
-      selector:
-        ":matches(MethodDefinition, PropertyDefinition)[value.async=true] > Decorator:matches([expression.name='action'], [expression.object.name='action'])",
-      message: "Actions are synchronous. Use a query or a mutation for async work.",
-    },
-    {
-      selector: "CallExpression[callee.name='observer'] > :matches(ArrowFunctionExpression, FunctionExpression[id=null])",
-      message: "Name observer components, observer(function Name() { … }), so they show up in DevTools and profiles.",
-    },
-    {
-      selector: "CallExpression[callee.name='makeAutoObservable']",
-      message: "Annotate explicitly.",
-    },
-  ],
-  "local/action-naming": "error",
-  "local/narrow-deps": ["error", { forbidden: ["ComposedApp"] }],
-};
+const CORE = ["src/renderer/src/features/*/core/**/*.ts", "src/renderer/src/platform/core/**/*.ts"];
 
 export default defineConfig(
   { ignores: ["out", "dist", "node_modules"] },
@@ -42,33 +15,52 @@ export default defineConfig(
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
-    plugins: { mobx, "react-hooks": reactHooks, local },
+    plugins: { "react-hooks": reactHooks, local },
     rules: {
-      ...mobx.flatConfigs.recommended.rules,
-      // Assumes legacy decorators: standard (TC39) decorators don't need makeObservable(this).
-      "mobx/missing-make-observable": "off",
-      // Only connected views must be observers (below); ui/ components take plain values.
-      "mobx/missing-observer": "off",
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-      ...mobxHygiene,
+      // The hook rules and the React Compiler's rules. A component the compiler bails out on falls
+      // back to plain re-renders with no visible sign, so every rule is an error.
+      ...reactHooks.configs.flat["recommended-latest"].rules,
+      "react-hooks/exhaustive-deps": "error",
+      "react-hooks/incompatible-library": "error",
+      "react-hooks/unsupported-syntax": "error",
+      "react-hooks/todo": "error",
+      "local/no-app-deps": ["error", { forbidden: ["ComposedApp"] }],
     },
   },
   {
-    // Connected components read models, so each one must be an observer.
-    files: ["src/renderer/src/features/*/views/**/*.{ts,tsx}"],
-    rules: { "mobx/missing-observer": "error" },
+    // The core: plain TypeScript that React depends on, never the reverse.
+    files: CORE,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "react", message: "The core has no React. React depends on the core, not the reverse." },
+            { name: "react-dom", message: "The core has no React." },
+            { name: "@tanstack/react-query", message: "Use @tanstack/query-core in the core." },
+            { name: "zustand", message: "Use zustand/vanilla in the core; hooks live in the feature's hooks." },
+            { name: "zustand/traditional", message: "Use zustand/vanilla in the core." },
+            { name: "zustand/shallow", message: "Use zustand/vanilla/shallow in the core." },
+          ],
+        },
+      ],
+      // Every subscription's unsubscribe is kept: added to a Disposer or returned.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ExpressionStatement > CallExpression[callee.property.name='subscribe']",
+          message: "Keep the unsubscribe: disposer.add(x.subscribe(…)), or return it.",
+        },
+      ],
+    },
   },
   {
     // Presentational components take plain values and never import a feature.
     files: ["src/renderer/src/platform/ui/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{ group: ["**/features/**", "**/app/**"], message: "ui/ components take plain values, never models." }] }],
+      "no-restricted-imports": ["error", { patterns: [{ group: ["**/features/**", "**/app/**"], message: "ui/ components take plain values." }] }],
     },
   },
-  ...(lazyDependencies.length
-    ? [{ files: lazyDependencies.map(({ file }) => file), rules: { "local/narrow-deps": ["error", { forbidden: ["ComposedApp"], allowLazy: true }] } }]
-    : []),
   {
     files: ["lint/**/*.mjs", "*.config.{ts,mjs}"],
     languageOptions: { globals: globals.node },

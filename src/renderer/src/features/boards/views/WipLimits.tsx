@@ -1,35 +1,39 @@
-import { observer } from "mobx-react-lite";
-
-import { COLUMN_TITLES, COLUMNS } from "../../../../../shared/api";
-import type { BoardModel } from "../BoardModel";
-import { useSetWipLimit } from "../hooks";
+import { COLUMN_TITLES, COLUMNS, type Column } from "../../../../../shared/api";
+import { useBoardActions, useBoardName, useColumn } from "../hooks";
 
 const LIMITS = [null, 1, 2, 3, 4, 5, 6];
 
 /** Server-side settings that feed a derivation: each column's "over the limit" state. */
-export const WipLimits = observer(function WipLimits({ board }: { board: BoardModel }) {
-  const { mutate } = useSetWipLimit(board.id);
+export function WipLimits({ boardId }: { boardId: string }) {
   return (
     <section className="settings-group">
-      <h2>Work-in-progress limits: {board.name}</h2>
+      <h2>Work-in-progress limits: {useBoardName(boardId)}</h2>
       <div className="fields">
         {COLUMNS.map((column) => (
-          <label key={column}>
-            {COLUMN_TITLES[column]}
-            <select
-              value={board.limit(column) ?? ""}
-              onChange={(event) => mutate({ column, limit: event.target.value === "" ? null : Number(event.target.value) })}
-            >
-              {LIMITS.map((limit) => (
-                <option key={limit ?? "none"} value={limit ?? ""}>
-                  {limit === null ? "No limit" : limit}
-                </option>
-              ))}
-            </select>
-            <span className="muted">{board.column(column).total} cards now</span>
-          </label>
+          <WipLimit key={column} boardId={boardId} column={column} />
         ))}
       </div>
     </section>
   );
-});
+}
+
+function WipLimit({ boardId, column }: { boardId: string; column: Column }) {
+  const { cardIds, limit } = useColumn(boardId, column);
+  const { setWipLimit } = useBoardActions();
+  return (
+    <label>
+      {COLUMN_TITLES[column]}
+      <select
+        value={limit ?? ""}
+        onChange={(event) => void setWipLimit(boardId, column, event.target.value === "" ? null : Number(event.target.value))}
+      >
+        {LIMITS.map((option) => (
+          <option key={option ?? "none"} value={option ?? ""}>
+            {option === null ? "No limit" : option}
+          </option>
+        ))}
+      </select>
+      <span className="muted">{cardIds.length} cards now</span>
+    </label>
+  );
+}

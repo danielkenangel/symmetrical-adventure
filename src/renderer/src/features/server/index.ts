@@ -1,5 +1,3 @@
-// The server feature's public API. Other features and the app import only from here.
-export { serverKeys, type ServerApi } from "./queries";
-export { createServer, ServerProvider, useServer, type Server, type ServerDeps } from "./server";
-export { ServerModel } from "./ServerModel";
+// The server feature's React API. Its core API is in ./core.
+export { ServerProvider } from "./hooks";
 export { ServerSettings } from "./views/ServerSettings";

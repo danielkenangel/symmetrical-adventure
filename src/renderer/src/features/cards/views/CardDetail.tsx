@@ -1,46 +1,52 @@
-import { observer } from "mobx-react-lite";
+import type { ReactNode } from "react";
 
-import { COLUMN_TITLES } from "../../../../../shared/api";
-import { SkeletonLines } from "../../../platform/ui/primitives";
-import type { BoardModel } from "../../boards";
-import { useCards } from "../cards";
+import { PanelHeader, SkeletonLines } from "../../../platform/ui/primitives";
+import { useCard, useComments } from "../hooks";
+
+export interface CardDetailProps {
+  cardId: string;
+  onClose: () => void;
+  /** Fields from whoever placed the card, such as its board column. */
+  fields?: ReactNode;
+}
 
 /**
- * The card opens instantly from the board's data; only its comments load (and they were
+ * A card's detail, as side-panel content: the shell owns the panel. The card opens instantly from its cached content; only its comments load (and they were
  * probably prefetched when the pointer passed over the card).
  */
-export const CardDetail = observer(function CardDetail({ board, cardId, onClose }: { board: BoardModel; cardId: string; onClose: () => void }) {
-  const card = board.card(cardId);
-  const detail = useCards().model(cardId);
-  if (!card) return null;
+export function CardDetail({ cardId, onClose, fields }: CardDetailProps) {
+  const card = useCard(cardId).data;
   return (
-    <aside className="detail">
-      <header className="detail-header">
-        <h2>{card.title}</h2>
+    <>
+      <PanelHeader title={card?.title}>
         <button type="button" onClick={onClose} aria-label="Close">
           ✕
         </button>
-      </header>
-      <dl className="detail-fields">
-        <dt>Status</dt>
-        <dd>{COLUMN_TITLES[card.column]}</dd>
-        <dt>Assignee</dt>
-        <dd>{card.assignee ?? "Unassigned"}</dd>
-      </dl>
-      <h3>Comments</h3>
-      {detail.isLoading ? (
-        <SkeletonLines lines={card.commentCount} />
-      ) : detail.comments.length === 0 ? (
-        <p className="muted">No comments yet.</p>
-      ) : (
-        <ul className="comments">
-          {detail.comments.map((comment) => (
-            <li key={comment.id}>
-              <strong>{comment.author}</strong> {comment.body}
-            </li>
-          ))}
-        </ul>
-      )}
-    </aside>
+      </PanelHeader>
+      <div className="panel-body detail">
+        <dl className="detail-fields">
+          {fields}
+          <dt>Assignee</dt>
+          <dd>{card?.assignee ?? "Unassigned"}</dd>
+        </dl>
+        <h3>Comments</h3>
+        <Comments cardId={cardId} expected={card?.commentCount ?? 1} />
+      </div>
+    </>
   );
-});
+}
+
+function Comments({ cardId, expected }: { cardId: string; expected: number }) {
+  const { data: comments, isPending } = useComments(cardId);
+  if (isPending || !comments) return <SkeletonLines lines={expected} />;
+  if (comments.length === 0) return <p className="muted">No comments yet.</p>;
+  return (
+    <ul className="comments">
+      {comments.map((comment) => (
+        <li key={comment.id}>
+          <strong>{comment.author}</strong> {comment.body}
+        </li>
+      ))}
+    </ul>
+  );
+}

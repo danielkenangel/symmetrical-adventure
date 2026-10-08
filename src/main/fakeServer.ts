@@ -22,11 +22,14 @@ const SEED: Record<string, { name: string; titles: string[] }> = {
 export class FakeServer {
   private readonly boards = new Map<string, Board>();
   private readonly comments = new Map<string, Comment[]>();
-  private controls: ServerControls = { latencyMs: 400, failNext: false, remoteActivity: true };
+  private controls: ServerControls = { latencyMs: 400, failNext: false, remoteActivity: true, chatRate: 300 };
   private nextId = 1;
   private ticker: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly publish: (change: CardChanged) => void) {
+  constructor(
+    private readonly publish: (change: CardChanged) => void,
+    private readonly onControls: (controls: ServerControls) => void = () => {},
+  ) {
     for (const [boardId, { name, titles }] of Object.entries(SEED)) {
       const cards = titles.map((title, index) => this.makeCard(boardId, title, COLUMNS[index % 3]!, index));
       this.boards.set(boardId, { id: boardId, name, cards, wipLimits: { todo: null, doing: 3, done: null } });
@@ -40,6 +43,10 @@ export class FakeServer {
 
   getBoard(boardId: string): Promise<Board> {
     return this.respond(() => this.board(boardId));
+  }
+
+  getCard(cardId: string): Promise<Card> {
+    return this.respond(() => this.card(cardId));
   }
 
   getComments(cardId: string): Promise<Comment[]> {
@@ -74,6 +81,7 @@ export class FakeServer {
   setControls(patch: Partial<ServerControls>): Promise<ServerControls> {
     this.controls = { ...this.controls, ...patch };
     this.syncTicker();
+    this.onControls(this.controls);
     return this.respond(() => this.controls, { latency: false });
   }
 
@@ -96,17 +104,21 @@ export class FakeServer {
     return board;
   }
 
-  private move(cardId: string, column: Column): Card {
+  private card(cardId: string): Card {
     for (const board of this.boards.values()) {
       const card = board.cards.find((candidate) => candidate.id === cardId);
-      if (!card) continue;
-      if (card.column !== column) {
-        card.rank = nextRank(board.cards, column);
-        card.column = column;
-      }
-      return card;
+      if (card) return card;
     }
     throw new Error(`No card ${cardId}`);
+  }
+
+  private move(cardId: string, column: Column): Card {
+    const card = this.card(cardId);
+    if (card.column !== column) {
+      card.rank = nextRank(this.board(card.boardId).cards, column);
+      card.column = column;
+    }
+    return card;
   }
 
   private makeCard(boardId: string, title: string, column: Column, rank: number): Card {

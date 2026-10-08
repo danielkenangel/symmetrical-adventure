@@ -1,17 +1,15 @@
-import { observer } from "mobx-react-lite";
-
-import { CACHE_STORAGE_KEY } from "../../../platform/data/queryClient";
+import { CACHE_STORAGE_KEY } from "../../../platform/core/queryClient";
 import { WipLimits } from "../../boards";
 import { ServerSettings } from "../../server";
-import { useShell } from "../shell";
+import { useCurrentBoardId } from "../hooks";
 
-export const SettingsView = observer(function SettingsView() {
-  const board = useShell().model.currentBoard;
+export function SettingsView() {
+  const boardId = useCurrentBoardId();
   return (
     <section className="settings">
       <h1>Settings</h1>
       <ServerSettings />
-      {board && <WipLimits board={board} />}
+      {boardId && <WipLimits boardId={boardId} />}
       <section className="settings-group">
         <h2>Saved cache</h2>
         <p className="muted">Boards are saved to disk, so a relaunch shows them without loading. Clear the cache to see the cold start.</p>
@@ -27,4 +25,4 @@ export const SettingsView = observer(function SettingsView() {
       </section>
     </section>
   );
-});
+}

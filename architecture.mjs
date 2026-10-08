@@ -1,22 +1,17 @@
 /**
  * The feature graph: the one place dependencies between features are declared.
  *
- * A feature may import the platform, shared code, and the features listed here, through their
- * index.ts only. Adding an edge is a reviewed change to this file; dependency-cruiser rejects any
- * import that isn't listed (see .dependency-cruiser.mjs). Like a language that refuses import
- * cycles unless you opt in, a cycle between features also needs an entry in `allowedCycles`, and
- * a runtime back-edge (a Lazy<T> dependency) needs its file in `lazyDependencies`, each with a reason.
+ * A feature may import the platform, shared code, and the features listed here. It imports another
+ * feature through one of its two entry points: `index.ts` (its React API: providers, hooks, views)
+ * or `core/index.ts` (its core API: no React). A feature's core may only use other features' cores.
+ * Adding an edge is a reviewed change to this file; dependency-cruiser rejects any import that
+ * isn't listed, and any cycle (see .dependency-cruiser.mjs).
  */
 export const features = {
   navigation: [],
-  boards: [],
-  cards: ["boards"],
+  cards: [],
+  boards: ["cards", "navigation"],
   server: [],
-  shell: ["navigation", "boards", "cards", "server"],
+  chat: [],
+  shell: ["navigation", "boards", "server", "chat"],
 };
-
-/** @type {Array<{ between: [string, string]; reason: string }>} */
-export const allowedCycles = [];
-
-/** @type {Array<{ file: string; reason: string }>} Files (relative to the repo root) allowed to declare Lazy<T> dependencies. */
-export const lazyDependencies = [];

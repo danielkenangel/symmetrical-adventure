@@ -1,7 +1,6 @@
-/**
- * Presentational components: props only, plain values only. They never receive a model, so they
- * never need to be observers (see the "data leaving the observable graph" rule).
- */
+/** Presentational components: props only, plain values only. They never import a feature. */
+
+import type { ReactNode } from "react";
 
 export function cls(...names: Array<string | false | null | undefined>): string {
   return names.filter(Boolean).join(" ");
@@ -31,5 +30,15 @@ export function BoardSkeleton() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** The header every side panel uses: a title, and controls on the right. */
+export function PanelHeader({ title, children }: { title: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="panel-header">
+      <h2>{title}</h2>
+      {children}
+    </header>
   );
 }

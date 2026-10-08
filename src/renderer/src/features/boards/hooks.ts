@@ -1,29 +1,78 @@
-import { useMutation, useMutationState } from "@tanstack/react-query";
+import { useMutationState, useQuery } from "@tanstack/react-query";
+import { useStore } from "zustand";
 
-import { useBoards } from "./boards";
-import { boardKeys } from "./queries";
+import type { Column } from "../../../../shared/api";
+import { createFeatureContext } from "../../platform/react/featureContext";
+import { useLocation } from "../navigation";
+import { boardKeys, columnOf, type Boards } from "./core";
 
-export function useMoveCard(boardId: string) {
-  return useMutation(useBoards().mutations.move(boardId));
+const [BoardsProvider, useBoards] = createFeatureContext<Boards>("boards");
+export { BoardsProvider };
+
+export function useBoardList() {
+  return useQuery(useBoards().queries.list());
 }
 
-export function useCreateCard(boardId: string) {
-  return useMutation(useBoards().mutations.create(boardId));
+/** Whether the board's first load is still running. */
+export function useBoardPending(boardId: string): boolean {
+  return useQuery(useBoards().queries.board(boardId)).isPending;
 }
 
-export function useSetWipLimit(boardId: string) {
-  return useMutation(useBoards().mutations.setWipLimit(boardId));
+export function useBoardName(boardId: string): string | undefined {
+  return useQuery({ ...useBoards().queries.board(boardId), select: (board) => board.name }).data;
 }
 
-export interface PendingCard {
-  title: string;
-  id: number;
+/** For the sidebar badge: re-renders only when the count does. */
+export function useTodoCount(boardId: string) {
+  return useQuery({ ...useBoards().queries.board(boardId), select: (board) => board.columns.todo.length });
 }
 
-/** Cards being created, from the pending mutations' input rather than the cache. */
-export function usePendingCards(boardId: string): PendingCard[] {
+/**
+ * One column: its card IDs and WIP limit. The selection is structurally shared, so a column whose
+ * cards didn't change keeps the same array and doesn't re-render.
+ */
+export function useColumn(boardId: string, column: Column): { cardIds: readonly string[]; limit: number | null } {
+  const { data } = useQuery({
+    ...useBoards().queries.board(boardId),
+    select: (board) => ({ cardIds: board.columns[column], limit: board.wipLimits[column] }),
+  });
+  return data ?? { cardIds: NO_IDS, limit: null };
+}
+
+/** Which column a card is in on this board, or undefined if it isn't (or is no longer) here. */
+export function useCardColumn(boardId: string, cardId: string): Column | undefined {
+  return useQuery({ ...useBoards().queries.board(boardId), select: (board) => columnOf(board, cardId) }).data;
+}
+
+/** The open card, if it's on this board. Which card is open belongs to navigation. */
+export function useOpenCardId(boardId: string): string | null {
+  const cardId = useLocation((s) => s.selectedCardId);
+  return useCardColumn(boardId, cardId ?? "") && cardId ? cardId : null;
+}
+
+export function useBoardFilter(boardId: string): string {
+  return useStore(useBoards().store, (s) => s.filters[boardId] ?? "");
+}
+
+/** Cards being created: the pending mutations' own input, read by key. Nothing is in the cache yet. */
+export function usePendingCards(boardId: string): Array<{ id: number; title: string }> {
   return useMutationState({
     filters: { mutationKey: boardKeys.create(boardId), status: "pending" },
-    select: (mutation): PendingCard => ({ title: mutation.state.variables as string, id: mutation.mutationId }),
+    select: (mutation) => ({ id: mutation.mutationId, title: mutation.state.variables as string }),
   });
 }
+
+/** The latest move's error, if it failed (and was undone). Cleared by the next move. */
+export function useMoveError(boardId: string): string | null {
+  const moves = useMutationState({
+    filters: { mutationKey: boardKeys.move(boardId) },
+    select: (mutation) => mutation.state.error?.message ?? null,
+  });
+  return moves.at(-1) ?? null;
+}
+
+export function useBoardActions(): Boards {
+  return useBoards();
+}
+
+const NO_IDS: readonly string[] = [];

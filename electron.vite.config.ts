@@ -5,8 +5,8 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
-    plugins: [react()],
-    // Standard (TC39) decorators aren't in any engine yet, so esbuild lowers them.
-    esbuild: { target: "es2022" },
+    // The React Compiler memoizes components and hooks, so the code has no hand-written useMemo or
+    // useCallback.
+    plugins: [react({ babel: { plugins: ["babel-plugin-react-compiler"] } })],
   },
 });

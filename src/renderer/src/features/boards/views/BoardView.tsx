@@ -1,153 +1,156 @@
-import { observer } from "mobx-react-lite";
-import { useCallback, useState, type FormEvent } from "react";
+import { memo, useState, type FormEvent } from "react";
 
 import { COLUMN_TITLES, COLUMNS, type Column } from "../../../../../shared/api";
 import { BoardSkeleton, cls } from "../../../platform/ui/primitives";
-import type { BoardModel } from "../BoardModel";
-import { useCreateCard, useMoveCard, usePendingCards, type PendingCard } from "../hooks";
-
-type MoveCard = (cardId: string, column: Column) => void;
-const NO_PENDING: PendingCard[] = [];
+import { CardTile, useCardTitle } from "../../cards";
+import { useIsSelectedCard, useLocation, useNavigationActions } from "../../navigation";
+import {
+  useBoardActions,
+  useBoardFilter,
+  useBoardName,
+  useBoardPending,
+  useColumn,
+  useMoveError,
+  usePendingCards,
+} from "../hooks";
 
 /**
- * Selection and what happens on hover belong to other features (navigation, cards), so they come in
- * as props: the boards feature doesn't depend on either. Pass stable callbacks.
+ * A board and its cards. Every component below takes IDs and reads its own slice, so a change
+ * re-renders only the components whose slice changed.
  */
-export interface BoardViewProps {
-  board: BoardModel;
-  selectedCardId: string | null;
-  onSelectCard: (cardId: string) => void;
-  onCardHover?: (cardId: string) => void;
-}
-
-interface CardEvents {
-  onMove: MoveCard;
-  onSelectCard: (cardId: string) => void;
-  onCardHover?: (cardId: string) => void;
-}
-
-export const BoardView = observer(function BoardView({ board, selectedCardId, onSelectCard, onCardHover }: BoardViewProps) {
-  const { mutate, error, isError } = useMoveCard(board.id);
-  // No React Compiler here: the callback is stabilized by hand, so the memoized rows below don't
-  // re-render just because the board did.
-  const onMove = useCallback<MoveCard>((cardId, column) => mutate({ cardId, column }), [mutate]);
-  const pending = usePendingCards(board.id);
-
-  if (board.isLoading) return <BoardSkeleton />;
+export function BoardView({ boardId }: { boardId: string }) {
+  if (useBoardPending(boardId)) return <BoardSkeleton />;
   return (
     <section className="board">
       <header className="board-header">
-        <h1>{board.name}</h1>
-        <input
-          className="filter"
-          value={board.filter}
-          onChange={(event) => board.setFilterAction(event.target.value)}
-          placeholder="Filter cards"
-          aria-label="Filter cards"
-        />
-        <NewCard board={board} />
+        <BoardName boardId={boardId} />
+        <FilterInput boardId={boardId} />
+        <NewCard boardId={boardId} />
       </header>
-      {isError && <div className="notice error">{error.message} The move was undone.</div>}
+      <MoveError boardId={boardId} />
       <div className="columns">
-        {board.columns.map((column) => (
-          <ColumnView
-            key={column}
-            board={board}
-            column={column}
-            pending={column === "todo" ? pending : NO_PENDING}
-            selectedCardId={selectedCardId}
-            onMove={onMove}
-            onSelectCard={onSelectCard}
-            onCardHover={onCardHover}
-          />
+        {COLUMNS.map((column) => (
+          <ColumnView key={column} boardId={boardId} column={column} />
         ))}
       </div>
+      <ChatToggle />
     </section>
   );
-});
+}
 
-const ColumnView = observer(function ColumnView({
-  board,
-  column,
-  pending,
-  selectedCardId,
-  ...events
-}: { board: BoardModel; column: Column; pending: PendingCard[]; selectedCardId: string | null } & CardEvents) {
-  const view = board.column(column);
+/** Opens the board chat in the side panel. Positioned at the bottom left of the board area. */
+function ChatToggle() {
+  const open = useLocation((s) => s.chatOpen);
+  const { toggleChat } = useNavigationActions();
   return (
-    <div className={cls("column", view.overLimit && "over-limit")} data-testid="column">
+    <button type="button" className={cls("chat-toggle", open && "active")} onClick={toggleChat} aria-pressed={open}>
+      Board chat
+    </button>
+  );
+}
+
+function BoardName({ boardId }: { boardId: string }) {
+  return <h1>{useBoardName(boardId)}</h1>;
+}
+
+function FilterInput({ boardId }: { boardId: string }) {
+  const filter = useBoardFilter(boardId);
+  const { setFilter } = useBoardActions();
+  return (
+    <input
+      className="filter"
+      value={filter}
+      onChange={(event) => setFilter(boardId, event.target.value)}
+      placeholder="Filter cards"
+      aria-label="Filter cards"
+    />
+  );
+}
+
+function MoveError({ boardId }: { boardId: string }) {
+  const error = useMoveError(boardId);
+  return error && <div className="notice error">{error} The move was undone.</div>;
+}
+
+function ColumnView({ boardId, column }: { boardId: string; column: Column }) {
+  const { cardIds, limit } = useColumn(boardId, column);
+  const overLimit = limit !== null && cardIds.length > limit;
+  return (
+    <div className={cls("column", overLimit && "over-limit")} data-testid="column">
       <div className="column-header">
         <span>{COLUMN_TITLES[column]}</span>
         <span className="count">
-          {view.total}
-          {view.limit !== null && ` / ${view.limit}`}
+          {cardIds.length}
+          {limit !== null && ` / ${limit}`}
         </span>
       </div>
-      {view.overLimit && <div className="limit-warning">Over the WIP limit</div>}
+      {overLimit && <div className="limit-warning">Over the WIP limit</div>}
       <div className="cards">
-        {view.cardIds.map((cardId) => (
-          <CardTile key={cardId} board={board} cardId={cardId} selected={cardId === selectedCardId} {...events} />
+        {cardIds.map((cardId) => (
+          <BoardCard key={cardId} boardId={boardId} cardId={cardId} column={column} />
         ))}
-        {pending.map(({ title, id }) => (
-          <div key={id} className="card ghost">
-            {title}
-          </div>
-        ))}
+        {column === "todo" && <PendingCards boardId={boardId} />}
       </div>
     </div>
   );
-});
+}
 
-/** A card. Only re-renders when its own card object changes (moves elsewhere keep it identical). */
-const CardTile = observer(function CardTile({
-  board,
-  cardId,
-  selected,
-  onMove,
-  onSelectCard,
-  onCardHover,
-}: { board: BoardModel; cardId: string; selected: boolean } & CardEvents) {
-  const card = board.card(cardId);
-  if (!card) return null;
-  const index = COLUMNS.indexOf(card.column);
+/**
+ * A card as this board places it: the cards feature's tile, plus the board's move controls. Hides
+ * itself when it doesn't match the filter, so the column doesn't need every card's title. A list
+ * row, so memo (see ChatLine).
+ */
+const BoardCard = memo(function BoardCard({ boardId, cardId, column }: { boardId: string; cardId: string; column: Column }) {
+  const filter = useBoardFilter(boardId).trim().toLowerCase();
+  const title = useCardTitle(cardId);
+  const selected = useIsSelectedCard(cardId);
+  const { selectCard } = useNavigationActions();
+  const { moveCard } = useBoardActions();
+  if (filter && !title?.toLowerCase().includes(filter)) return null;
+  const index = COLUMNS.indexOf(column);
   const previous = COLUMNS[index - 1];
   const next = COLUMNS[index + 1];
   return (
-    <div
-      className={cls("card", selected && "selected")}
-      onMouseEnter={() => onCardHover?.(card.id)}
-      onClick={() => onSelectCard(card.id)}
-    >
-      <div className="card-title">{card.title}</div>
-      <div className="card-meta">
-        <span>{card.assignee ?? "Unassigned"}</span>
-        {card.commentCount > 0 && <span>{card.commentCount} comments</span>}
-      </div>
-      <div className="card-actions" onClick={(event) => event.stopPropagation()}>
-        <button type="button" disabled={!previous} onClick={() => previous && onMove(card.id, previous)} aria-label="Move left">
-          ←
-        </button>
-        <button type="button" disabled={!next} onClick={() => next && onMove(card.id, next)} aria-label="Move right">
-          →
-        </button>
-      </div>
-    </div>
+    <CardTile
+      cardId={cardId}
+      selected={selected}
+      onSelect={selectCard}
+      actions={
+        <>
+          <button type="button" disabled={!previous} onClick={() => previous && moveCard(boardId, cardId, previous)} aria-label="Move left">
+            ←
+          </button>
+          <button type="button" disabled={!next} onClick={() => next && moveCard(boardId, cardId, next)} aria-label="Move right">
+            →
+          </button>
+        </>
+      }
+    />
   );
 });
 
-const NewCard = observer(function NewCard({ board }: { board: BoardModel }) {
-  const { mutate } = useCreateCard(board.id);
+function PendingCards({ boardId }: { boardId: string }) {
+  return usePendingCards(boardId).map(({ id, title }) => (
+    <div key={id} className="card ghost">
+      {title}
+    </div>
+  ));
+}
+
+function NewCard({ boardId }: { boardId: string }) {
+  const name = useBoardName(boardId);
+  const { createCard } = useBoardActions();
   const [title, setTitle] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return;
-    mutate(title.trim());
+    void createCard(boardId, title.trim());
     setTitle("");
   };
   return (
     <form className="new-card" onSubmit={submit}>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`Add a card to ${board.name}`} aria-label="New card title" />
+      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`Add a card to ${name ?? ""}`} aria-label="New card title" />
       <button type="submit">Add</button>
     </form>
   );
-});
+}

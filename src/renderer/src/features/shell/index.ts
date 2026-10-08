@@ -1,4 +1,2 @@
-// The shell feature's public API. The app imports only from here.
-export { createShell, ShellProvider, useShell, type Shell, type ShellDeps } from "./shell";
-export { ShellModel } from "./ShellModel";
-export { Shell as ShellView } from "./views/Shell";
+// The shell feature's React API. Its core API is in ./core.
+export { Shell } from "./views/Shell";

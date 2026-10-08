@@ -1,5 +1,4 @@
-// The cards feature's public API. Other features and the app import only from here.
-export { CardModel } from "./CardModel";
-export { CardsProvider, createCards, useCards, type Cards, type CardsDeps } from "./cards";
-export { cardKeys, type CardsApi } from "./queries";
-export { CardDetail } from "./views/CardDetail";
+// The cards feature's React API. Its core API is in ./core.
+export { CardsProvider, useCardTitle } from "./hooks";
+export { CardDetail, type CardDetailProps } from "./views/CardDetail";
+export { CardTile, type CardTileProps } from "./views/CardTile";
