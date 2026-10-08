@@ -1,7 +1,7 @@
 import { memo } from "react";
 
 import { PanelHeader } from "../../../platform/ui/primitives";
-import { RoomContext, useChat, useWatchedRoom } from "../hooks";
+import { RoomContext, useMessage, useMessageIds, useReceivedCount, useWatchedRoom } from "../hooks";
 
 /**
  * The board's chat, as side-panel content: the shell owns the panel. It puts the room's store in
@@ -24,12 +24,12 @@ export function ChatPanel({ boardId }: { boardId: string }) {
 }
 
 function ChatCount() {
-  const received = useChat((s) => s.received);
+  const received = useReceivedCount();
   return <span className="muted panel-meta">{received} events</span>;
 }
 
 function ChatLog() {
-  const messageIds = useChat((s) => s.messageIds);
+  const messageIds = useMessageIds();
   return (
     // Reversed in a column-reverse list: the newest line sits at the bottom, and the list stays
     // scrolled to it without any scroll code.
@@ -44,7 +44,7 @@ function ChatLog() {
 // memo: the compiler memoizes elements in a component's body, but not the ones built in a .map, so
 // without it every line re-renders whenever the log does.
 const ChatLine = memo(function ChatLine({ messageId }: { messageId: string }) {
-  const message = useChat((s) => s.messages[messageId]);
+  const message = useMessage(messageId);
   if (!message) return null;
   return (
     <li className="chat-line">

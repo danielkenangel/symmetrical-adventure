@@ -1,6 +1,5 @@
-import { createStore } from "zustand/vanilla";
-
 import type { Api, ChatEvent } from "../../../../../shared/api";
+import { defineStore } from "../../../platform/core/defineStore";
 import { onNextFrame } from "../../../platform/core/frame";
 import { EMPTY_CHAT, reduce, type ChatState } from "./reduce";
 
@@ -12,15 +11,23 @@ export interface ChatDeps {
  * One board's chat. Events arrive hundreds of times a second; they're queued and applied once per
  * frame, so readers see at most one update per frame however fast the stream is.
  */
-function createRoom() {
-  const store = createStore<ChatState>()(() => EMPTY_CHAT);
+function createRoom(boardId: string) {
+  const store = defineStore({
+    name: `chat/${boardId}`,
+    initialState: EMPTY_CHAT as ChatState,
+    // A hot path: up to one write per frame.
+    devtools: false,
+    actions: (set) => ({
+      apply: (events: ChatEvent[]) => set("apply", (state) => reduce(state, events)),
+    }),
+  });
   let queue: ChatEvent[] = [];
   let cancel: (() => void) | null = null;
   const flush = () => {
     cancel = null;
     const events = queue;
     queue = [];
-    store.setState((state) => reduce(state, events));
+    store.actions.apply(events);
   };
   return {
     store,
@@ -45,7 +52,7 @@ export function createChat(deps: ChatDeps) {
   const room = (boardId: string) => {
     let existing = rooms.get(boardId);
     if (!existing) {
-      existing = createRoom();
+      existing = createRoom(boardId);
       rooms.set(boardId, existing);
     }
     return existing;

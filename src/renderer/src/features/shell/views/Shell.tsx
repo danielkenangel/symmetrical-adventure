@@ -1,14 +1,14 @@
 import { BoardSkeleton } from "../../../platform/ui/primitives";
 import { BoardView, SelectedCard, useBoardList, useOpenCardId } from "../../boards";
 import { ChatPanel } from "../../chat";
-import { useLocation } from "../../navigation";
+import { useChatOpen, useView } from "../../navigation";
 import { useCurrentBoardId } from "../hooks";
 import { SettingsView } from "./SettingsView";
 import { Sidebar } from "./Sidebar";
 
 /** The layout: the sidebar, the board or the settings, and a side panel for the board. */
 export function Shell() {
-  const view = useLocation((s) => s.view);
+  const view = useView();
   const boardId = useCurrentBoardId();
   return (
     <div className="shell">
@@ -30,7 +30,7 @@ export function Shell() {
 
 /** One container for whatever the side panel shows: the chat, the open card, or nothing. */
 function SidePanel({ boardId }: { boardId: string }) {
-  const chatOpen = useLocation((s) => s.chatOpen);
+  const chatOpen = useChatOpen();
   const cardId = useOpenCardId(boardId);
   if (!chatOpen && !cardId) return null;
   return <aside className="side-panel">{chatOpen ? <ChatPanel boardId={boardId} /> : <SelectedCard boardId={boardId} />}</aside>;

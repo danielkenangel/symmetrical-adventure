@@ -20,7 +20,7 @@ What MobX gave us that we still want is shared derivation with fine-grained upda
 
 ```
 core/  (per feature)   plain TypeScript, no React
-  stores               vanilla Zustand (createStore)
+  stores               defineStore (platform/core/defineStore.ts), Zustand underneath
   services             daemon client, stream reducers, sync, connections
   queries, mutations   option factories; the QueryClient itself
   derive functions     pure
@@ -36,7 +36,7 @@ views/ hooks/ (per feature)   React
 
 ## Rules
 
-1. **React pushes intents, not values.** Components call actions (`store.getState().moveCard(...)`) and report view lifecycle ("thread X is visible"). A component never writes a value it computed into a store. That's a side channel synced by an effect, stale for a render after every change (bezi-next's `publishAvailability`).
+1. **React pushes intents, not values.** Components call actions (`actions.moveCard(...)`) and report view lifecycle ("thread X is visible"). A component never writes a value it computed into a store. That's a side channel synced by an effect, stale for a render after every change (bezi-next's `publishAvailability`).
 2. **Anything non-React code needs is computed in the core.** Not computed in a component and then published.
 3. **A derived value is stored only if one writer owns it.** The reducer or action that writes the inputs writes the derived field in the same step, so it can't drift. A derived field kept in sync by several actions is the stored-flags problem; use a memoized core selector instead.
 4. **Cheap derivations are just functions.** Call them where needed; the compiler memoizes them in components. Only expensive ones need storing (rule 3) or a memoized core selector.
@@ -54,46 +54,41 @@ views/ hooks/ (per feature)   React
 
 ### A core store
 
+Every store is made with `defineStore` (`platform/core/defineStore.ts`), called in the feature's factory so each composed app has its own instance. State changes only through named actions; each write carries a label, shown in Redux DevTools as `boards/setFilter`. Actions return nothing: reads are `read` (non-React) or a hook from `selectFrom` (React).
+
 ```ts
-// features/boards/core/boardsStore.ts
-import { createStore } from "zustand/vanilla";
-import { subscribeWithSelector } from "zustand/middleware";
-
-export interface BoardsState {
-  filters: Record<string, string>;
-  setFilter(boardId: string, filter: string): void;
+// features/boards/core/boards.ts
+export function createBoards(deps: BoardsDeps) {
+  const store = defineStore({
+    name: "boards",
+    initialState: { filters: {} } as BoardsState,
+    actions: (set) => ({
+      // The label is explicit, so a write after an await is still named correctly.
+      setFilter: (boardId: string, filter: string) =>
+        set("setFilter", (s) => ({ filters: { ...s.filters, [boardId]: filter } })),
+    }),
+  });
+  const actions = { ...store.actions, moveCard, createCard, setWipLimit }; // store writes and mutations alike
+  return { queries, store, actions, start };
 }
-
-export function createBoardsStore() {
-  return createStore<BoardsState>()(
-    subscribeWithSelector((set) => ({
-      filters: {},
-      setFilter: (boardId, filter) => set((s) => ({ filters: { ...s.filters, [boardId]: filter } })),
-    })),
-  );
-}
-export type BoardsStore = ReturnType<typeof createBoardsStore>;
 ```
+
+A store has no `setState`: TypeScript, not lint, keeps writes inside its actions. The zustand store behind it is reachable only through the `STORE` symbol, which only `platform/react/select.ts` may import. `devtools: false` opts a hot store out of DevTools serialization.
 
 ### Subscriptions in the core (reactions, without React)
 
 Every subscription returns an unsubscribe, which goes into the owning scope's `Disposer`.
 
 ```ts
-// A store field changed: save it. subscribeWithSelector only calls back when the selection changes.
-disposer.add(
-  boards.subscribe(
-    (s) => s.filters,
-    (filters) => storage.setItem("filters", JSON.stringify(filters)),
-  ),
-);
+// A store field changed: save it. watch calls back only when the selection changes.
+disposer.add(boards.store.watch((s) => s.filters, (filters) => storage.setItem("filters", JSON.stringify(filters))));
 
-// Several fields, compared shallowly, fired once on start.
+// Several fields: a tuple, compared shallowly. fireImmediately runs it once on start.
 disposer.add(
-  shell.subscribe(
-    (s) => [s.boardName, s.todoCount] as const,
-    ([name, todo]) => setTitle(name ? `${name} (${todo} to do)` : "State demo"),
-    { equalityFn: shallow, fireImmediately: true },
+  navigation.store.watch(
+    (s) => [s.view, s.boardId] as const,
+    ([view, boardId]) => storage.setItem("location", JSON.stringify({ view, boardId })),
+    { fireImmediately: true },
   ),
 );
 
@@ -116,30 +111,37 @@ disposer.add(
 ### Reading from non-React code
 
 ```ts
-const filter = boardsStore.getState().filters[boardId] ?? "";       // client state: read directly
+const filterOf = boards.store.read((s, boardId: string) => s.filters[boardId] ?? ""); // client state: a reader
+const filter = filterOf(boardId);
 const cached = queryClient.getQueryData(boardKeys.board(boardId));  // server data, if cached
 const board = await queryClient.ensureQueryData(boardQueries.board(boardId)); // server data, fetched if needed
 ```
 
 ### Reading from React: handle in context, slice in the leaf
 
-```tsx
-// features/boards/hooks/BoardsProvider.tsx: the context holds the store, which never changes
-const BoardsContext = createContext<BoardsStore | null>(null);
-export function BoardsProvider({ store, children }: { store: BoardsStore; children: ReactNode }) {
-  return <BoardsContext value={store}>{children}</BoardsContext>;
-}
+```ts
+// features/boards/hooks.ts: the feature context holds the core, which never changes
+const [BoardsProvider, useBoards] = createFeatureContext<Boards>("boards");
 
-// The hook selects the smallest slice. Only components whose slice changed re-render.
-export function useBoardFilter(boardId: string): string {
-  return useStore(use(BoardsContext)!, (s) => s.filters[boardId] ?? "");
+// selectFrom (platform/react/select.ts) turns selectors into named hooks over the store.
+// Results are compared shallowly: return a primitive, a stored reference, or a flat pick.
+function useBoardsStore() {
+  return useBoards().store;
+}
+const select = selectFrom(useBoardsStore);
+
+export const useBoardFilter = select((s, boardId: string) => s.filters[boardId] ?? "");
+export function useBoardActions() {
+  return useBoards().actions; // views reach the writes, never the store
 }
 ```
+
+Every hook is named and exported; components never pass a selector. `useBoardsStore` is a named `use*` function because the hook rules reject a hook called from an anonymous arrow.
 
 ```tsx
 // Lists pass IDs; the leaf resolves its own data.
 function Column({ boardId, column }: { boardId: string; column: Column }) {
-  const cardIds = useColumnCardIds(boardId, column);
+  const { cardIds } = useColumn(boardId, column);
   return cardIds.map((id) => <CardTile key={id} cardId={id} />);
 }
 
@@ -201,56 +203,66 @@ Settled in the rebuild: a `MutationObserver` per call, detached when it settles.
 The stream lives entirely in the core. React selects per leaf.
 
 ```ts
-// features/chat/core/chatStore.ts: one store per stream
-export function createChatStore(source: ChatSource) {
-  const store = createStore<ChatState>()(subscribeWithSelector(() => emptyChat()));
+// features/chat/core/chat.ts: one store per room
+function createRoom(boardId: string) {
+  const store = defineStore({
+    name: `chat/${boardId}`,
+    initialState: EMPTY_CHAT as ChatState,
+    devtools: false, // a hot path: up to one write per frame
+    actions: (set) => ({
+      apply: (events: ChatEvent[]) => set("apply", (s) => reduce(s, events)), // pure; unchanged messages keep their identity
+    }),
+  });
   let queue: ChatEvent[] = [];
   let cancel: (() => void) | null = null;
   const flush = () => {
     cancel = null;
     const events = queue;
     queue = [];
-    store.setState((s) => reduce(s, events)); // pure; unchanged messages keep their identity
+    store.actions.apply(events);
   };
-  const stop = source.subscribe((event) => {
-    queue.push(event);
-    // At most one update per frame, however fast events arrive. onNextFrame falls back to a timer,
-    // because a hidden window gets no animation frames.
-    cancel ??= onNextFrame(flush);
-  });
-  return { store, dispose: () => { stop(); cancel?.(); } };
+  return {
+    store,
+    push(event: ChatEvent) {
+      queue.push(event);
+      // At most one update per frame, however fast events arrive. onNextFrame falls back to a timer,
+      // because a hidden window gets no animation frames.
+      cancel ??= onNextFrame(flush);
+    },
+  };
 }
 ```
 
 ```tsx
+// features/chat/hooks.ts: the room comes from the panel's context
+const select = selectFrom(useRoom);
+export const useMessageIds = select((s) => s.messageIds); // re-renders when messages are added, not edited
+export const useMessage = select((s, messageId: string) => s.messages[messageId]); // only when this message changes
+
 // The list selects only IDs; each row selects only its message.
 function ChatLog() {
-  const ids = useChat((s) => s.messageIds, shallow); // re-renders when messages are added, not edited
+  const ids = useMessageIds();
   return ids.map((id) => <ChatLine key={id} messageId={id} />);
 }
 
 // memo: a list row (rule 13). Without it, every line re-renders whenever the log does.
 const ChatLine = memo(function ChatLine({ messageId }: { messageId: string }) {
-  const message = useChat((s) => s.messages[messageId]); // re-renders only when this message changes
+  const message = useMessage(messageId);
   return <div className="chat-line"><b>{message.author}</b> {message.text}</div>;
 });
-
-// useChat: Zustand's useStoreWithEqualityFn, which wraps useSyncExternalStoreWithSelector.
-// bezi-next hand-rolls this; here it comes from the library.
-export function useChat<T>(selector: (s: ChatState) => T, equality?: (a: T, b: T) => boolean): T {
-  return useStoreWithEqualityFn(use(ChatContext)!, selector, equality);
-}
 ```
 
-Measured while building the demo, with temporary render counters (since removed), as the fake server streamed chat at 300 events per second for two seconds: 549 events applied in about 210 updates (one per frame, on a 120 Hz display); the log rendered about 190 times (it skips updates that only add hype); lines rendered 536 times, one per changed message.
+Measured while building the demo, with temporary render counters (since removed), as the fake server streamed chat at 300 events per second for two seconds: 549 events applied in about 210 updates (one per frame, on a 120 Hz display); the log rendered about 190 times (it skips updates that only add hype); lines rendered 536 times, one per changed message. Re-measured after moving to `defineStore`: 549 events in 232 updates, 542 line renders; one card move still renders 2 columns and 1 card.
 
 ## Enforcement
 
 | Rule | Tool |
 |---|---|
 | `core/` imports no React packages | ESLint `no-restricted-imports` on `core/` folders |
+| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` on every file |
+| Store writes go through actions | TypeScript: a defined store has no `setState` |
 | A feature's core uses only other features' cores (`core/index.ts`) and the platform core | dependency-cruiser `core-uses-cores` |
-| Every subscription's unsubscribe is kept | ESLint `no-restricted-syntax` on `core/` folders |
+| Every subscription's unsubscribe is kept (`subscribe`, `watch`) | ESLint `no-restricted-syntax` on `core/` folders |
 | Features import only declared features, through `index.ts` or `core/index.ts`; no cycles | dependency-cruiser (`architecture.mjs`), carried over from RFC 1 |
 | Hook rules, dependencies, and every compiler rule | `eslint-plugin-react-hooks` `recommended-latest`, with its warnings raised to errors |
 | Factories take the features they use, never the composed app | `local/no-app-deps`, carried over |
@@ -260,4 +272,3 @@ Candidates to try: a rule against store setters or `setQueryData` inside `useEff
 ## Open questions
 
 - Where per-entity hooks get their scope when an entity type is shared across features (profiles in threads, members and comments). Likely `useProfile(id)` from the profiles feature, read anywhere it's declared as a dependency.
-- Whether `subscribeWithSelector` is enough for core reactions, or a small `select(store, selector, listener)` helper is clearer.

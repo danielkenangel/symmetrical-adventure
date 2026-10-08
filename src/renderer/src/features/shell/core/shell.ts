@@ -37,7 +37,7 @@ export function createShell(deps: ShellDeps) {
         const next = board ? `${board.name} (${board.columns.todo.length} to do)` : "State demo";
         if (next !== title) deps.setTitle((title = next));
       };
-      disposer.add(navigation.store.subscribe(update));
+      disposer.add(navigation.store.watch((s) => s.boardId, update));
       disposer.add(queryClient.getQueryCache().subscribe(({ query }) => query.queryKey[0] !== "card" && update()));
       update();
       return () => disposer.dispose();

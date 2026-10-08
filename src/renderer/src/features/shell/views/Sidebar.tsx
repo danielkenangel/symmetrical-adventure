@@ -2,12 +2,12 @@ import { memo } from "react";
 
 import { Badge, cls, SkeletonLines } from "../../../platform/ui/primitives";
 import { useBoardList, useTodoCount } from "../../boards";
-import { useLocation, useNavigationActions } from "../../navigation";
+import { useIsView, useNavigationActions } from "../../navigation";
 import { useCurrentBoardId } from "../hooks";
 
 export function Sidebar() {
   const boards = useBoardList().data;
-  const settings = useLocation((s) => s.view === "settings");
+  const settings = useIsView("settings");
   const { showSettings } = useNavigationActions();
   return (
     <nav className="sidebar">
@@ -27,7 +27,7 @@ export function Sidebar() {
  */
 const BoardLink = memo(function BoardLink({ boardId, name }: { boardId: string; name: string }) {
   const { data: count, isPending } = useTodoCount(boardId);
-  const onBoardView = useLocation((s) => s.view === "board");
+  const onBoardView = useIsView("board");
   const current = useCurrentBoardId();
   const active = onBoardView && current === boardId;
   const { showBoard } = useNavigationActions();

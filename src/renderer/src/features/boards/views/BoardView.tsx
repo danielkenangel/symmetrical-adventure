@@ -3,7 +3,7 @@ import { memo, useState, type FormEvent } from "react";
 import { COLUMN_TITLES, COLUMNS, type Column } from "../../../../../shared/api";
 import { BoardSkeleton, cls } from "../../../platform/ui/primitives";
 import { CardTile, useCardTitle } from "../../cards";
-import { useIsSelectedCard, useLocation, useNavigationActions } from "../../navigation";
+import { useChatOpen, useIsSelectedCard, useNavigationActions } from "../../navigation";
 import {
   useBoardActions,
   useBoardFilter,
@@ -40,7 +40,7 @@ export function BoardView({ boardId }: { boardId: string }) {
 
 /** Opens the board chat in the side panel. Positioned at the bottom left of the board area. */
 function ChatToggle() {
-  const open = useLocation((s) => s.chatOpen);
+  const open = useChatOpen();
   const { toggleChat } = useNavigationActions();
   return (
     <button type="button" className={cls("chat-toggle", open && "active")} onClick={toggleChat} aria-pressed={open}>

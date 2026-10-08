@@ -2,7 +2,7 @@
 
 A small Electron kanban board, with a live chat per board (the Twitch chat of kanban boards), that demonstrates a React-first state architecture:
 
-- **The core** is plain TypeScript with no React: vanilla Zustand stores, TanStack Query's client, writes, stream reducers and subscriptions.
+- **The core** is plain TypeScript with no React: stores made with `defineStore`, TanStack Query's client, writes, stream reducers and subscriptions.
 - **React depends on the core**, never the reverse: hooks select from it, and components send it intents.
 - **The React Compiler** memoizes components, so there's no hand-written `useMemo` or `useCallback`.
 
@@ -58,7 +58,7 @@ architecture.mjs       the declared edges between features
 ### Adding a feature
 
 1. Create `features/<name>/core/` with a `create<Name>(deps)` factory and `core/index.ts`. Building it must do nothing: no fetching, no subscribing, no I/O. Always-on work goes in `start()`, which returns its cleanup.
-2. Add `hooks.ts` with `createFeatureContext` and the hooks other components read, and `index.ts` exporting the provider, hooks and views.
+2. Add `hooks.ts` with `createFeatureContext` and the hooks other components read (made with `selectFrom` for a store), and `index.ts` exporting the provider, hooks and views.
 3. Declare it in `architecture.mjs`, with the features it may depend on. Undeclared folders and imports fail `pnpm lint`.
 4. Build it in `app/compose.ts` after its dependencies, and add its provider in `app/Providers.tsx`.
 
@@ -66,9 +66,11 @@ architecture.mjs       the declared edges between features
 
 | Rule | Tool |
 |---|---|
-| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`, React entry points of `zustand`) | ESLint `no-restricted-imports` on `core/` |
+| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`) | ESLint `no-restricted-imports` on `core/` |
+| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` everywhere |
+| Store writes go through named actions | TypeScript: a defined store has no `setState` |
 | A feature's core uses only other features' cores and the platform core | dependency-cruiser `core-uses-cores`, `platform-core-is-react-free` |
-| Every subscription's unsubscribe is kept | ESLint `no-restricted-syntax` on `core/` |
+| Every subscription's unsubscribe is kept (`subscribe`, `watch`) | ESLint `no-restricted-syntax` on `core/` |
 | Hook rules, dependencies, and every React Compiler rule, at error | `eslint-plugin-react-hooks` (`recommended-latest`, warnings raised to errors) |
 | No import cycles, including type-only ones | dependency-cruiser `no-cycles` |
 | A feature imports only the features `architecture.mjs` lists, through `index.ts` or `core/index.ts` | dependency-cruiser `feature-edges:*`, `public-api-only` |
@@ -81,6 +83,7 @@ architecture.mjs       the declared edges between features
 |---|---|
 | React pushes intents, not values (1) | views call `useBoardActions().moveCard(…)`, `useNavigationActions().selectCard(…)` |
 | Non-React work in the core (2, 9) | the window title in `shell/core/shell.ts`; live updates in `boards/core/boards.ts`; saving the location in `navigation/core/navigation.ts` |
+| Stores: named actions, shallow-compared named hooks, `read`, `watch` | `platform/core/defineStore.ts`, `platform/react/select.ts`; used by `navigation`, `boards` and `chat` |
 | Contexts carry handles (5) | every provider in `app/Providers.tsx` holds a core that never changes |
 | Leafiest reader, IDs as props (6) | `BoardCard` and `CardTile` take a card ID and read their own entry; `ChatLine` takes a message ID |
 | Hooks are the feature's API (7) | `features/*/hooks.ts`, exported from `index.ts` |

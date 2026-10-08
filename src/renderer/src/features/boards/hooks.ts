@@ -1,13 +1,18 @@
 import { useMutationState, useQuery } from "@tanstack/react-query";
-import { useStore } from "zustand";
 
 import type { Column } from "../../../../shared/api";
 import { createFeatureContext } from "../../platform/react/featureContext";
-import { useLocation } from "../navigation";
+import { selectFrom } from "../../platform/react/select";
+import { useSelectedCardId } from "../navigation";
 import { boardKeys, columnOf, type Boards } from "./core";
 
 const [BoardsProvider, useBoards] = createFeatureContext<Boards>("boards");
 export { BoardsProvider };
+
+function useBoardsStore() {
+  return useBoards().store;
+}
+const select = selectFrom(useBoardsStore);
 
 export function useBoardList() {
   return useQuery(useBoards().queries.list());
@@ -46,13 +51,11 @@ export function useCardColumn(boardId: string, cardId: string): Column | undefin
 
 /** The open card, if it's on this board. Which card is open belongs to navigation. */
 export function useOpenCardId(boardId: string): string | null {
-  const cardId = useLocation((s) => s.selectedCardId);
+  const cardId = useSelectedCardId();
   return useCardColumn(boardId, cardId ?? "") && cardId ? cardId : null;
 }
 
-export function useBoardFilter(boardId: string): string {
-  return useStore(useBoards().store, (s) => s.filters[boardId] ?? "");
-}
+export const useBoardFilter = select((s, boardId: string) => s.filters[boardId] ?? "");
 
 /** Cards being created: the pending mutations' own input, read by key. Nothing is in the cache yet. */
 export function usePendingCards(boardId: string): Array<{ id: number; title: string }> {
@@ -71,8 +74,8 @@ export function useMoveError(boardId: string): string | null {
   return moves.at(-1) ?? null;
 }
 
-export function useBoardActions(): Boards {
-  return useBoards();
+export function useBoardActions(): Boards["actions"] {
+  return useBoards().actions;
 }
 
 const NO_IDS: readonly string[] = [];

@@ -1,8 +1,8 @@
 import { createContext, use, useEffect } from "react";
-import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { createFeatureContext } from "../../platform/react/featureContext";
-import type { Chat, ChatRoomStore, ChatState } from "./core";
+import { selectFrom } from "../../platform/react/select";
+import type { Chat, ChatRoomStore } from "./core";
 
 const [ChatProvider, useChatCore] = createFeatureContext<Chat>("chat");
 export { ChatProvider };
@@ -20,12 +20,16 @@ export function useWatchedRoom(boardId: string): ChatRoomStore {
   return chat.room(boardId);
 }
 
-/**
- * A slice of the room being shown. Zustand's wrapper over useSyncExternalStoreWithSelector: the
- * component re-renders only when its selection changes, compared with `equality`.
- */
-export function useChat<T>(selector: (state: ChatState) => T, equality?: (a: T, b: T) => boolean): T {
+function useRoom(): ChatRoomStore {
   const room = use(RoomContext);
-  if (!room) throw new Error("useChat needs a ChatPanel above it.");
-  return useStoreWithEqualityFn(room, selector, equality);
+  if (!room) throw new Error("Chat hooks need a ChatPanel above them.");
+  return room;
 }
+const select = selectFrom(useRoom);
+
+/** How many events the room has received. */
+export const useReceivedCount = select((s) => s.received);
+/** The kept messages' IDs, oldest first. The same array until a message arrives or is dropped. */
+export const useMessageIds = select((s) => s.messageIds);
+/** One message; re-renders only when it changes. */
+export const useMessage = select((s, messageId: string) => s.messages[messageId]);
