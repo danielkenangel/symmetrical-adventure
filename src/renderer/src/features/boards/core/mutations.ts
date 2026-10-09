@@ -22,10 +22,10 @@ interface MutationDeps {
  * - Refetch once the last write to the board settles, whatever its kind, so an early response can't
  *   overwrite a later optimistic change.
  */
-function refetchAfterLastWrite(queryClient: QueryClient, boardId: string) {
+function refetchAfterLastWrite(queryClient: QueryClient, boardId: string): void {
   // onSettled runs before the mutation leaves the pending state, so this one counts itself.
   if (queryClient.isMutating({ mutationKey: boardKeys.writes(boardId) }) === 1) {
-    return queryClient.invalidateQueries({ queryKey: boardKeys.board(boardId) });
+    void queryClient.invalidateQueries({ queryKey: boardKeys.board(boardId) });
   }
 }
 
