@@ -27,6 +27,7 @@ pnpm smoke        # build, run hidden, run a few interactions and log what each 
 - **WIP limits.** A setting that feeds a derivation: lower "In progress" below its card count and the column turns red.
 - **No spinners on relaunch.** Quit and reopen: you're back on the same board, with its data, before any request finishes. "Clear cache and reload" shows the cold start.
 - **Per-board client state.** Type a filter, switch boards, come back: the filter is still there.
+- **State that comes back, then gets dropped.** Clap (👏) on a board, switch boards, come back: the count is still there. Only the two most recent boards are kept, so after visiting all three, the first starts over. Each board view owns a store while mounted and saves a snapshot to a small LRU (`createScopedContext`, `createSnapshotCache`).
 - **Prefetch.** Hover a card, then open it: the comments are usually already loaded.
 
 ## Layout
@@ -34,8 +35,8 @@ pnpm smoke        # build, run hidden, run a few interactions and log what each 
 ```
 src/renderer/src/
   platform/
-    core/              no React: the query client and persistence, defineQuery, runMutation, Disposer, onNextFrame
-    react/             createFeatureContext
+    core/              no React: the query client and persistence, defineQuery, createSnapshotCache, runMutation, Disposer, onNextFrame
+    react/             createFeatureContext, createScopedContext
     ui/                presentational components: plain values only
   features/<name>/
     core/              no React: stores, queries, writes, subscriptions; core/index.ts is its core API

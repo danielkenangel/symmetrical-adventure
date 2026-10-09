@@ -6,6 +6,10 @@ import { CardTile } from "../../cards";
 import { useChatOpen, useIsSelectedCard, useNavigationActions } from "../../navigation";
 import { FilterMatchesProvider, useMatchingCardIds } from "../filterMatches";
 import {
+  ApplauseProvider,
+  useApplause,
+  useApplauseActions,
+  useApplauseSnapshots,
   useBoardActions,
   useBoardFilter,
   useBoardNameQuery,
@@ -25,6 +29,7 @@ export function BoardView({ boardId }: { boardId: string }) {
     <section className="board">
       <header className="board-header">
         <BoardName boardId={boardId} />
+        <Applause boardId={boardId} />
         <FilterInput boardId={boardId} />
         <NewCard boardId={boardId} />
       </header>
@@ -48,6 +53,31 @@ function ChatToggle() {
   return (
     <button type="button" className={cls("chat-toggle", open && "active")} onClick={toggleChat} aria-pressed={open}>
       Board chat
+    </button>
+  );
+}
+
+/** Kept per board after you leave it, for the two most recent boards (see `boards.applause`). */
+function Applause({ boardId }: { boardId: string }) {
+  return (
+    <ApplauseProvider key={boardId} id={boardId} snapshots={useApplauseSnapshots()}>
+      <ApplauseButton />
+    </ApplauseProvider>
+  );
+}
+
+function ApplauseButton() {
+  const count = useApplause();
+  const { clap } = useApplauseActions();
+  return (
+    <button
+      type="button"
+      className="applause"
+      onClick={clap}
+      aria-label="Applaud this board"
+      title="Remembered when you switch boards; the two most recent are kept"
+    >
+      👏 {count}
     </button>
   );
 }

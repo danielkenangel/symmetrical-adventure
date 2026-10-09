@@ -143,6 +143,9 @@ select {
 .filter {
   width: 200px;
 }
+.applause {
+  font-variant-numeric: tabular-nums;
+}
 .new-card {
   display: flex;
   gap: 6px;

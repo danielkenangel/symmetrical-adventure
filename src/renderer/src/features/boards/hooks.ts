@@ -2,9 +2,10 @@ import { useMutationState, useQuery } from "@tanstack/react-query";
 
 import { COLUMNS, type Column } from "../../../../shared/api";
 import { createFeatureContext } from "../../platform/react/featureContext";
+import { createScopedContext } from "../../platform/react/scopedContext";
 import { selectFrom } from "../../platform/react/select";
 import { useSelectedCardId } from "../navigation";
-import { boardKeys, columnOf, type Boards } from "./core";
+import { boardKeys, columnOf, type ApplauseState, type Boards } from "./core";
 
 const [BoardsProvider, useBoards] = createFeatureContext<Boards>("boards");
 export { BoardsProvider };
@@ -79,6 +80,22 @@ export function useMoveErrorMutation(boardId: string): string | null {
     select: (mutation) => mutation.state.error?.message ?? null,
   });
   return moves.at(-1) ?? null;
+}
+
+/** A store per mounted board, seeded from and saved to `boards.applause`. Render it keyed by board. */
+const [ApplauseProvider, useApplauseStore] = createScopedContext({
+  name: "applause",
+  initialState: { count: 0 } as ApplauseState,
+  actions: (set) => ({ clap: () => set("clap", (s) => ({ count: s.count + 1 })) }),
+});
+export { ApplauseProvider };
+
+export function useApplauseSnapshots(): Boards["applause"] {
+  return useBoards().applause;
+}
+export const useApplause = selectFrom(useApplauseStore)((s) => s.count);
+export function useApplauseActions() {
+  return useApplauseStore().actions;
 }
 
 export function useBoardActions(): Boards["actions"] {

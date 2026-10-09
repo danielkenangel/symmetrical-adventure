@@ -202,6 +202,45 @@ export function usePendingCardsMutation(boardId: string) {
 
 Settled in the rebuild: a `MutationObserver` per call, detached when it settles. Pending input and the latest error are read with `useMutationState` by key, so a write started outside React shows up the same way.
 
+### A store per key: dynamic scopes
+
+A thread's expanded groups, its panel history, where it was scrolled to: client state that belongs to one thread, lives only for this app instance, and should still be there after switching to another thread and back.
+
+Each mounted view gets its own store, which is authoritative while it's mounted. It starts from a snapshot of where that key left off and copies its state back on every change. The snapshots are plain data in an LRU (`createSnapshotCache`, `platform/core/snapshotCache.ts`), owned by the feature's core and made in its factory like any store, so a recompose (a profile or workspace switch) drops them.
+
+```ts
+// features/threads/core/threads.ts
+const uiSnapshots = createSnapshotCache<ThreadUiState>({ max: 50 }); // the oldest past this starts fresh next time
+```
+
+```tsx
+// features/threads/hooks.ts
+const [ThreadUiProvider, useThreadUi] = createScopedContext({
+  name: "thread-ui",
+  initialState: { expanded: {}, history: [] } as ThreadUiState,
+  actions: (set) => ({
+    toggle: (groupId: string) => set("toggle", (s) => ({ expanded: { ...s.expanded, [groupId]: !s.expanded[groupId] } })),
+  }),
+});
+const select = selectFrom(useThreadUi);
+export const useGroupExpanded = select((s, groupId: string) => s.expanded[groupId] ?? false);
+
+// features/threads/views/ThreadView.tsx: keyed, because the store is made once per mount
+return (
+  <ThreadUiProvider key={threadId} id={threadId} snapshots={threads.uiSnapshots}>
+    <ThreadBody />
+  </ThreadUiProvider>
+);
+```
+
+Saving is an effect, but a pure side effect: nothing subscribes to the cache, so it can't re-render anything, and nothing reads it while the key is mounted. The trade-offs:
+
+- Non-React code sees only the last snapshot, not the live state. If a core subscription needs a thread's UI state while it's mounted, this pattern doesn't fit.
+- Two mounts of one key (a thread in the main view and a panel) have separate stores; the cache keeps whichever saved last.
+- Mounted keys save too, so they count toward `max`.
+
+A connection or service scope (a host, its daemon client) is not this: it's a core-owned registry with its own lifecycle, not UI state, and gets no LRU.
+
 ### High-frequency streams
 
 The stream lives entirely in the core. React selects per leaf.

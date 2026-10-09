@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/query-core";
 import type { Api, Column } from "../../../../../shared/api";
 import { defineStore } from "../../../platform/core/defineStore";
 import { runMutation } from "../../../platform/core/mutations";
+import { createSnapshotCache } from "../../../platform/core/snapshotCache";
 import type { Cards } from "../../cards/core";
 import { withCardPlaced } from "./boardUpdates";
 import { createCardOptions, moveCardOptions, setWipLimitOptions } from "./mutations";
@@ -48,6 +49,11 @@ export function createBoards(deps: BoardsDeps) {
   return {
     queries,
     store,
+    /**
+     * Each board's applause tally, kept after leaving the board (see `createScopedContext`). Only two
+     * are kept, so the demo shows one dropping: visit all three boards and the first starts over.
+     */
+    applause: createSnapshotCache<ApplauseState>({ max: 2 }),
     /** Every write: the store's actions and the mutations, called the same way in and out of React. */
     actions,
     /** Applies other people's changes to the cached boards. */
@@ -62,3 +68,8 @@ export function createBoards(deps: BoardsDeps) {
 }
 
 export type Boards = ReturnType<typeof createBoards>;
+
+/** A board's applause: a demo of per-board UI state that survives leaving the board. */
+export interface ApplauseState {
+  count: number;
+}
