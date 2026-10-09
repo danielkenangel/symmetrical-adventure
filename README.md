@@ -1,12 +1,6 @@
 # State demo
 
-A small Electron kanban board, with a live chat per board (the Twitch chat of kanban boards), that demonstrates a React-first state architecture:
-
-- **The core** is plain TypeScript with no React: stores made with `defineStore`, TanStack Query's client, writes, stream reducers and subscriptions.
-- **React depends on the core**, never the reverse: hooks select from it, and components send it intents.
-- **The React Compiler** memoizes components, so there's no hand-written `useMemo` or `useCallback`.
-
-The rules are in [NOTES-react-architecture.md](NOTES-react-architecture.md). The MobX version of this demo is on `main`, for comparison.
+A small Electron kanban board.
 
 ```sh
 pnpm install
