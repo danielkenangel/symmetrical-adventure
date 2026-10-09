@@ -25,12 +25,7 @@ export function createCards(deps: CardsDeps) {
      * change), as fresh as that response, so they don't load again.
      */
     upsert(cards: readonly Card[], updatedAt: number): void {
-      for (const card of cards)
-        deps.queryClient.setQueryData(
-          cardKeys.card(card.id),
-          toCardData(card),
-          { updatedAt },
-        );
+      for (const card of cards) deps.queryClient.setQueryData(cardKeys.card(card.id), toCardData(card), { updatedAt });
     },
     /** Warms a card's comments, e.g. when the pointer passes over it. */
     prefetchComments(cardId: string): void {

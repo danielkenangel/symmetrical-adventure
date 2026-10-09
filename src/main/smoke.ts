@@ -33,13 +33,18 @@ export function runSmoke(window: BrowserWindow): void {
     await step("move while filtering", moveRight);
     await step("clear the filter", type(".filter", ""));
     await step("open a card", "document.querySelector('.card:not(.ghost)').click()");
-    console.log(`[smoke] detail: ${await contents.executeJavaScript("document.querySelector('.detail')?.innerText.replace(/\\n/g, ' | ')")}`);
+    console.log(
+      `[smoke] detail: ${await contents.executeJavaScript("document.querySelector('.detail')?.innerText.replace(/\\n/g, ' | ')")}`,
+    );
     const panel = "({ chat: Boolean(document.querySelector('.chat-log')), detail: Boolean(document.querySelector('.detail')) })";
     await step("open the chat", "document.querySelector('[aria-pressed]').click()");
     console.log(`[smoke] right panel: ${JSON.stringify(await contents.executeJavaScript(panel))}`);
     await step("close the chat", "document.querySelector('[aria-pressed]').click()");
     console.log(`[smoke] right panel: ${JSON.stringify(await contents.executeJavaScript(panel))}`);
-    await step("open the chat, then click a card", "document.querySelector('[aria-pressed]').click(); document.querySelector('.card:not(.ghost)').click()");
+    await step(
+      "open the chat, then click a card",
+      "document.querySelector('[aria-pressed]').click(); document.querySelector('.card:not(.ghost)').click()",
+    );
     console.log(`[smoke] right panel: ${JSON.stringify(await contents.executeJavaScript(panel))}`);
     await step("close the card", "document.querySelector('[aria-label=Close]').click()");
     console.log(`[smoke] right panel: ${JSON.stringify(await contents.executeJavaScript(panel))}`);
@@ -50,4 +55,3 @@ export function runSmoke(window: BrowserWindow): void {
     app.quit();
   });
 }
-

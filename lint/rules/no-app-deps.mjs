@@ -67,7 +67,10 @@ export default {
       if (declaration.type === "TSTypeAliasDeclaration") return typeNames(declaration.typeAnnotation, seen);
       const inherited = (declaration.extends ?? []).flatMap((heritage) =>
         heritage.expression.type === "Identifier"
-          ? typeNames({ type: "TSTypeReference", typeName: heritage.expression, typeArguments: heritage.typeArguments ?? heritage.typeParameters }, seen)
+          ? typeNames(
+              { type: "TSTypeReference", typeName: heritage.expression, typeArguments: heritage.typeArguments ?? heritage.typeParameters },
+              seen,
+            )
           : [],
       );
       return [...inherited, ...membersOf(declaration.body.body, seen)];

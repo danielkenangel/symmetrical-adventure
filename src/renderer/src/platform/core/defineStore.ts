@@ -47,13 +47,14 @@ export interface DefinedStore<S extends object, A extends Actions> {
  * composed app has its own instance; hooks over it come from `selectFrom` (../react/select.ts).
  */
 export function defineStore<S extends object, A extends Actions>(def: StoreDefinition<S, A>): DefinedStore<S, A> {
-  const store = createStore<S>()(
-    devtools(() => def.initialState, { name: def.name, enabled: def.devtools ?? import.meta.env.DEV }),
-  );
+  const store = createStore<S>()(devtools(() => def.initialState, { name: def.name, enabled: def.devtools ?? import.meta.env.DEV }));
   const set: Assign<S> = (label, next) => store.setState(next, false, `${def.name}/${label}`);
 
   return {
-    read: (selector) => (...args) => selector(store.getState(), ...args),
+    read:
+      (selector) =>
+      (...args) =>
+        selector(store.getState(), ...args),
     watch: (selector, listener, options) => {
       let previous = selector(store.getState());
       if (options?.fireImmediately) listener(previous, previous);

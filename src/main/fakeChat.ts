@@ -1,6 +1,17 @@
 import type { ChatEvent, ChatMessage } from "../shared/api";
 
-const AUTHORS = ["kanban_enjoyer", "wip_limit_andy", "ada_l", "grace_h", "linus_t", "pm_dave", "qa_queen", "standup_skipper", "ticket_goblin", "burndown_bro"];
+const AUTHORS = [
+  "kanban_enjoyer",
+  "wip_limit_andy",
+  "ada_l",
+  "grace_h",
+  "linus_t",
+  "pm_dave",
+  "qa_queen",
+  "standup_skipper",
+  "ticket_goblin",
+  "burndown_bro",
+];
 const LINES = [
   "move it to done!!",
   "WIP limit KEKW",

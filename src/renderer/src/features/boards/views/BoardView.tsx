@@ -5,15 +5,7 @@ import { BoardSkeleton, cls } from "../../../platform/ui/primitives";
 import { CardTile } from "../../cards";
 import { useChatOpen, useIsSelectedCard, useNavigationActions } from "../../navigation";
 import { FilterMatchesProvider, useMatchingCardIds } from "../filterMatches";
-import {
-  useBoardActions,
-  useBoardFilter,
-  useBoardName,
-  useBoardPending,
-  useColumn,
-  useMoveError,
-  usePendingCards,
-} from "../hooks";
+import { useBoardActions, useBoardFilter, useBoardName, useBoardPending, useColumn, useMoveError, usePendingCards } from "../hooks";
 
 /**
  * A board and its cards. Every component below takes IDs and reads its own slice, so a change
@@ -150,7 +142,12 @@ function NewCard({ boardId }: { boardId: string }) {
   };
   return (
     <form className="new-card" onSubmit={submit}>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`Add a card to ${name ?? ""}`} aria-label="New card title" />
+      <input
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        placeholder={`Add a card to ${name ?? ""}`}
+        aria-label="New card title"
+      />
       <button type="submit">Add</button>
     </form>
   );

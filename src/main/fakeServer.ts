@@ -6,7 +6,16 @@ const PEOPLE = ["Ada", "Grace", "Linus", "Margaret", null] as const;
 const SEED: Record<string, { name: string; titles: string[] }> = {
   launch: {
     name: "Launch",
-    titles: ["Write release notes", "Record demo video", "Pricing page copy", "Press kit", "Beta feedback triage", "Status page", "Launch tweet thread", "Support macros"],
+    titles: [
+      "Write release notes",
+      "Record demo video",
+      "Pricing page copy",
+      "Press kit",
+      "Beta feedback triage",
+      "Status page",
+      "Launch tweet thread",
+      "Support macros",
+    ],
   },
   website: {
     name: "Website",
@@ -14,7 +23,15 @@ const SEED: Record<string, { name: string; titles: string[] }> = {
   },
   bugs: {
     name: "Bugs",
-    titles: ["Crash on resume", "Wrong timezone in exports", "Sidebar flickers", "Slow board load", "Duplicate notifications", "Drag preview offset", "Logout loop"],
+    titles: [
+      "Crash on resume",
+      "Wrong timezone in exports",
+      "Sidebar flickers",
+      "Slow board load",
+      "Duplicate notifications",
+      "Drag preview offset",
+      "Logout loop",
+    ],
   },
 };
 
@@ -58,20 +75,26 @@ export class FakeServer {
   }
 
   createCard({ boardId, title }: { boardId: string; title: string }): Promise<Card> {
-    return this.respond(() => {
-      const board = this.board(boardId);
-      const card = this.makeCard(boardId, title, "todo", nextRank(board.cards, "todo"));
-      board.cards.push(card);
-      return card;
-    }, { mutation: true });
+    return this.respond(
+      () => {
+        const board = this.board(boardId);
+        const card = this.makeCard(boardId, title, "todo", nextRank(board.cards, "todo"));
+        board.cards.push(card);
+        return card;
+      },
+      { mutation: true },
+    );
   }
 
   setWipLimit({ boardId, column, limit }: { boardId: string; column: Column; limit: number | null }): Promise<WipLimits> {
-    return this.respond(() => {
-      const board = this.board(boardId);
-      board.wipLimits = { ...board.wipLimits, [column]: limit };
-      return board.wipLimits;
-    }, { mutation: true });
+    return this.respond(
+      () => {
+        const board = this.board(boardId);
+        board.wipLimits = { ...board.wipLimits, [column]: limit };
+        return board.wipLimits;
+      },
+      { mutation: true },
+    );
   }
 
   getControls(): Promise<ServerControls> {

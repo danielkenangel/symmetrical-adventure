@@ -4,11 +4,7 @@ import { defineStore } from "../../../platform/core/defineStore";
 import { runMutation } from "../../../platform/core/mutations";
 import type { Cards } from "../../cards/core";
 import { withCardPlaced } from "./boardUpdates";
-import {
-  createCardOptions,
-  moveCardOptions,
-  setWipLimitOptions,
-} from "./mutations";
+import { createCardOptions, moveCardOptions, setWipLimitOptions } from "./mutations";
 import { boardKeys, createBoardQueries, type BoardData } from "./queries";
 
 export interface BoardsDeps {
@@ -39,29 +35,13 @@ export function createBoards(deps: BoardsDeps) {
   const actions = {
     ...store.actions,
     moveCard(boardId: string, cardId: string, column: Column): Promise<void> {
-      return runMutation(
-        deps.queryClient,
-        moveCardOptions(mutationDeps(boardId)),
-        { cardId, column },
-      );
+      return runMutation(deps.queryClient, moveCardOptions(mutationDeps(boardId)), { cardId, column });
     },
     createCard(boardId: string, title: string): Promise<void> {
-      return runMutation(
-        deps.queryClient,
-        createCardOptions(mutationDeps(boardId)),
-        title,
-      );
+      return runMutation(deps.queryClient, createCardOptions(mutationDeps(boardId)), title);
     },
-    setWipLimit(
-      boardId: string,
-      column: Column,
-      limit: number | null,
-    ): Promise<void> {
-      return runMutation(
-        deps.queryClient,
-        setWipLimitOptions(mutationDeps(boardId)),
-        { column, limit },
-      );
+    setWipLimit(boardId: string, column: Column, limit: number | null): Promise<void> {
+      return runMutation(deps.queryClient, setWipLimitOptions(mutationDeps(boardId)), { column, limit });
     },
   };
 
@@ -75,10 +55,7 @@ export function createBoards(deps: BoardsDeps) {
       // A change carries the whole card: its content goes to the cards feature, its place to the board.
       return deps.api.onCardChanged(({ boardId, card }) => {
         deps.cards.upsert([card], Date.now());
-        deps.queryClient.setQueryData<BoardData>(
-          boardKeys.board(boardId),
-          (board) => board && withCardPlaced(board, card),
-        );
+        deps.queryClient.setQueryData<BoardData>(boardKeys.board(boardId), (board) => board && withCardPlaced(board, card));
       });
     },
   };

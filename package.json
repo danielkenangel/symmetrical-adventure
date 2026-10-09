@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint . && pnpm arch",
     "smoke": "electron-vite build && SMOKE=1 electron .",
-    "arch": "depcruise src --config .dependency-cruiser.mjs"
+    "arch": "depcruise src --config .dependency-cruiser.mjs",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@tanstack/query-async-storage-persister": "^5.103.1",
@@ -36,6 +37,7 @@
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^15.9.0",
+    "prettier": "3.9.9",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.57.2",
     "vite": "^7.3.6"

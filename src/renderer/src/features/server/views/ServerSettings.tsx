@@ -40,7 +40,11 @@ export function ServerSettings() {
             Fail the next change (shows an optimistic update rolling back)
           </label>
           <label className="check">
-            <input type="checkbox" checked={controls.remoteActivity} onChange={(event) => void setControls({ remoteActivity: event.target.checked })} />
+            <input
+              type="checkbox"
+              checked={controls.remoteActivity}
+              onChange={(event) => void setControls({ remoteActivity: event.target.checked })}
+            />
             Simulate other people moving cards
           </label>
         </div>

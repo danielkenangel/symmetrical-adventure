@@ -27,7 +27,10 @@ async function flush(): Promise<void> {
   const batch = queue;
   queue = [];
   try {
-    const results: BatchResult[] = await ipcRenderer.invoke("batch", batch.map(({ call }) => call));
+    const results: BatchResult[] = await ipcRenderer.invoke(
+      "batch",
+      batch.map(({ call }) => call),
+    );
     results.forEach((result, index) => {
       const { resolve, reject } = batch[index]!;
       if (result.ok) resolve(result.value);

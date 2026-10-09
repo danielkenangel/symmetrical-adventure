@@ -1,10 +1,4 @@
-import type {
-  Api,
-  Board,
-  BoardSummary,
-  Column,
-  WipLimits,
-} from "../../../../../shared/api";
+import type { Api, Board, BoardSummary, Column, WipLimits } from "../../../../../shared/api";
 import { COLUMNS } from "../../../../../shared/api";
 import { persisted } from "../../../platform/core/queryClient";
 import type { Cards } from "../../cards/core";
@@ -18,8 +12,7 @@ export const boardKeys = {
   writes: (boardId: string) => ["board-write", boardId] as const,
   move: (boardId: string) => ["board-write", boardId, "move"] as const,
   create: (boardId: string) => ["board-write", boardId, "create"] as const,
-  setWipLimit: (boardId: string) =>
-    ["board-write", boardId, "wip-limit"] as const,
+  setWipLimit: (boardId: string) => ["board-write", boardId, "wip-limit"] as const,
 };
 
 /** A board as cached: where each card sits, by ID. The cards themselves belong to the cards feature. */
@@ -36,10 +29,7 @@ function normalize(board: Board, cards: Cards): BoardData {
   cards.upsert(board.cards, Date.now());
   const sorted = [...board.cards].sort((a, b) => a.rank - b.rank);
   const columns = Object.fromEntries(
-    COLUMNS.map((column) => [
-      column,
-      sorted.filter((card) => card.column === column).map((card) => card.id),
-    ]),
+    COLUMNS.map((column) => [column, sorted.filter((card) => card.column === column).map((card) => card.id)]),
   ) as Record<Column, string[]>;
   return {
     id: board.id,
@@ -59,8 +49,7 @@ export function createBoardQueries(api: Api, cards: Cards) {
     }),
     board: (boardId: string) => ({
       queryKey: boardKeys.board(boardId),
-      queryFn: async (): Promise<BoardData> =>
-        normalize(await api.getBoard(boardId), cards),
+      queryFn: async (): Promise<BoardData> => normalize(await api.getBoard(boardId), cards),
       ...persisted,
     }),
   };
