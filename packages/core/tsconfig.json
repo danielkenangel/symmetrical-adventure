@@ -1,0 +1,5 @@
+{
+  // No DOM, no Node, no React Native: what type-checks here runs on every app.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "../../types/universal.d.ts"]
+}

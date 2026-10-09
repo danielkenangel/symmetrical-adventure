@@ -1,0 +1,29 @@
+/* The web layout. The views' styles are in @state-demo/ui-dom/styles.css. */
+
+.web-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.web-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--line);
+}
+.web-tabs strong {
+  margin-right: 12px;
+}
+.web-tabs .nav-item {
+  width: auto;
+}
+.web-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.web-body .main {
+  flex: 1;
+}

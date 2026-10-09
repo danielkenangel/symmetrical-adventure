@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "State demo",
+    "slug": "state-demo",
+    "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
+    "experiments": { "reactCompiler": true }
+  }
+}

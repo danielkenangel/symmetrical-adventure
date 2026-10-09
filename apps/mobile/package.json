@@ -1,0 +1,35 @@
+{
+  "name": "@state-demo/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The mobile app (Expo): the boards and their chat, in React Native views. Mock data from the fake server, in-process.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "export:web": "expo export --platform web --output-dir dist",
+    "export:ios": "expo export --platform ios --output-dir out/ios",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~57.0.16",
+    "@state-demo/api": "workspace:*",
+    "@state-demo/core": "workspace:*",
+    "@state-demo/fake-server": "workspace:*",
+    "@state-demo/ui-native": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "expo": "~57.0.27",
+    "expo-status-bar": "~57.0.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "typescript": "catalog:"
+  }
+}

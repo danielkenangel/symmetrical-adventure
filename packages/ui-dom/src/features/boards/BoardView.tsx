@@ -1,0 +1,196 @@
+import { memo, useState, type FormEvent } from "react";
+
+import { COLUMN_TITLES, COLUMNS, type Column } from "@state-demo/api";
+import {
+  ApplauseProvider,
+  FilterMatchesProvider,
+  useApplause,
+  useApplauseActions,
+  useApplauseSnapshots,
+  useBoardActions,
+  useBoardFilter,
+  useBoardNameQuery,
+  useBoardQuery,
+  useColumnQuery,
+  useMatchingCardIds,
+  useMoveErrorMutation,
+  usePendingCardsMutation,
+} from "@state-demo/core/features/boards";
+import { useChatOpen, useIsSelectedCard, useNavigationActions } from "@state-demo/core/features/navigation";
+
+import { BoardSkeleton, cls } from "../../ui/primitives";
+import { CardTile } from "../cards";
+
+/**
+ * A board and its cards. Every component below takes IDs and reads its own slice, so a change
+ * re-renders only the components whose slice changed.
+ */
+export function BoardView({ boardId }: { boardId: string }) {
+  if (useBoardQuery(boardId).isPending) return <BoardSkeleton />;
+  return (
+    <section className="board">
+      <header className="board-header">
+        <BoardName boardId={boardId} />
+        <Applause boardId={boardId} />
+        <FilterInput boardId={boardId} />
+        <NewCard boardId={boardId} />
+      </header>
+      <MoveError boardId={boardId} />
+      <FilterMatchesProvider boardId={boardId}>
+        <div className="columns">
+          {COLUMNS.map((column) => (
+            <ColumnView key={column} boardId={boardId} column={column} />
+          ))}
+        </div>
+      </FilterMatchesProvider>
+      <ChatToggle />
+    </section>
+  );
+}
+
+/** Opens the board chat in the side panel. Positioned at the bottom left of the board area. */
+function ChatToggle() {
+  const open = useChatOpen();
+  const { toggleChat } = useNavigationActions();
+  return (
+    <button type="button" className={cls("chat-toggle", open && "active")} onClick={toggleChat} aria-pressed={open}>
+      Board chat
+    </button>
+  );
+}
+
+/** Kept per board after you leave it, for the two most recent boards (see `boards.applause`). */
+function Applause({ boardId }: { boardId: string }) {
+  return (
+    <ApplauseProvider key={boardId} id={boardId} snapshots={useApplauseSnapshots()}>
+      <ApplauseButton />
+    </ApplauseProvider>
+  );
+}
+
+function ApplauseButton() {
+  const count = useApplause();
+  const { clap } = useApplauseActions();
+  return (
+    <button
+      type="button"
+      className="applause"
+      onClick={clap}
+      aria-label="Applaud this board"
+      title="Remembered when you switch boards; the two most recent are kept"
+    >
+      👏 {count}
+    </button>
+  );
+}
+
+function BoardName({ boardId }: { boardId: string }) {
+  return <h1>{useBoardNameQuery(boardId).data}</h1>;
+}
+
+function FilterInput({ boardId }: { boardId: string }) {
+  const filter = useBoardFilter(boardId);
+  const { setFilter } = useBoardActions();
+  return (
+    <input
+      className="filter"
+      value={filter}
+      onChange={(event) => setFilter(boardId, event.target.value)}
+      placeholder="Filter cards"
+      aria-label="Filter cards"
+    />
+  );
+}
+
+function MoveError({ boardId }: { boardId: string }) {
+  const error = useMoveErrorMutation(boardId);
+  return error && <div className="notice error">{error} The move was undone.</div>;
+}
+
+function ColumnView({ boardId, column }: { boardId: string; column: Column }) {
+  const { cardIds, limit } = useColumnQuery(boardId, column).data ?? NO_COLUMN;
+  const shownIds = useMatchingCardIds(cardIds);
+  // The WIP limit counts the whole column, whatever the filter shows.
+  const overLimit = limit !== null && cardIds.length > limit;
+  return (
+    <div className={cls("column", overLimit && "over-limit")} data-testid="column">
+      <div className="column-header">
+        <span>{COLUMN_TITLES[column]}</span>
+        <span className="count">
+          {shownIds.length === cardIds.length ? cardIds.length : `${shownIds.length} of ${cardIds.length}`}
+          {limit !== null && ` / ${limit}`}
+        </span>
+      </div>
+      {overLimit && <div className="limit-warning">Over the WIP limit</div>}
+      <div className="cards">
+        {shownIds.map((cardId) => (
+          <BoardCard key={cardId} boardId={boardId} cardId={cardId} column={column} />
+        ))}
+        {column === "todo" && <PendingCards boardId={boardId} />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A card as this board places it: the cards feature's tile, plus the board's move controls. A list
+ * row, so memo (see ChatLine).
+ */
+const BoardCard = memo(function BoardCard({ boardId, cardId, column }: { boardId: string; cardId: string; column: Column }) {
+  const selected = useIsSelectedCard(cardId);
+  const { selectCard } = useNavigationActions();
+  const { moveCard } = useBoardActions();
+  const index = COLUMNS.indexOf(column);
+  const previous = COLUMNS[index - 1];
+  const next = COLUMNS[index + 1];
+  return (
+    <CardTile
+      cardId={cardId}
+      selected={selected}
+      onSelect={selectCard}
+      actions={
+        <>
+          <button type="button" disabled={!previous} onClick={() => previous && moveCard(boardId, cardId, previous)} aria-label="Move left">
+            ←
+          </button>
+          <button type="button" disabled={!next} onClick={() => next && moveCard(boardId, cardId, next)} aria-label="Move right">
+            →
+          </button>
+        </>
+      }
+    />
+  );
+});
+
+function PendingCards({ boardId }: { boardId: string }) {
+  return usePendingCardsMutation(boardId).map(({ id, title }) => (
+    <div key={id} className="card ghost">
+      {title}
+    </div>
+  ));
+}
+
+function NewCard({ boardId }: { boardId: string }) {
+  const name = useBoardNameQuery(boardId).data;
+  const { createCard } = useBoardActions();
+  const [title, setTitle] = useState("");
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!title.trim()) return;
+    void createCard(boardId, title.trim());
+    setTitle("");
+  };
+  return (
+    <form className="new-card" onSubmit={submit}>
+      <input
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        placeholder={`Add a card to ${name ?? ""}`}
+        aria-label="New card title"
+      />
+      <button type="submit">Add</button>
+    </form>
+  );
+}
+
+const NO_COLUMN = { cardIds: [] as readonly string[], limit: null };

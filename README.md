@@ -1,23 +1,30 @@
 # State demo
 
-A small Electron kanban board, with a live chat per board (the Twitch chat of kanban boards), that demonstrates a React-first state architecture:
+A small kanban board, with a live chat per board (the Twitch chat of kanban boards), that demonstrates a React-first state architecture, shared by three apps:
 
 - **The core** is plain TypeScript with no React: stores made with `defineStore`, TanStack Query's client, writes, stream reducers and subscriptions.
-- **React depends on the core**, never the reverse: hooks select from it, and components send it intents.
+- **React depends on the core**, never the reverse: hooks select from it, and components send it intents. The hooks use no DOM and no React Native, so every app shares them.
+- **Views are per platform**: DOM views for desktop and web, React Native views for mobile, over the same hooks. Each app's shell decides where they go.
 - **The React Compiler** memoizes components, so there's no hand-written `useMemo` or `useCallback`.
 
-The rules are in [NOTES-react-architecture.md](NOTES-react-architecture.md). The MobX version of this demo is on `main`, for comparison.
+The rules are in [NOTES-react-architecture.md](docs/NOTES-react-architecture.md).
 
 ```sh
 pnpm install
-pnpm dev          # run it
-pnpm lint         # ESLint (hook and compiler rules, core rules), plus the architecture check (dependency-cruiser)
-pnpm typecheck
-pnpm smoke        # build, run hidden, run a few interactions and log what each fetched;
-                  # run twice to see the cached first paint
+pnpm dev               # desktop (Electron): every feature, the fake server in the main process
+pnpm dev:web           # web (Vite, http://localhost:5180): the boards and their chat only
+pnpm dev:mobile        # mobile (Expo): the same, in React Native views; press w for the web build
+pnpm lint              # ESLint (hook and compiler rules, core rules), plus the architecture check (dependency-cruiser)
+pnpm typecheck         # every package and app, each against its own platform's types
+pnpm smoke             # desktop: build, run hidden, run a few interactions and log what each fetched;
+                       # run twice to see the cached first paint
+pnpm smoke:web         # web: build, drive it in Chrome, print what rendered and any console warnings
+pnpm smoke:mobile-web  # mobile's React Native views on react-native-web, same steps
 ```
 
 ## Things to try
+
+On desktop. Web and mobile have the same boards, cards and chat, without Settings; mobile also doesn't restore anything on relaunch yet (no synchronous storage).
 
 - **Board chat.** "Board chat" at the bottom left opens it in the right-hand panel, in place of the open card. A few hundred events a second: new messages, and hype on recent ones. Events are applied once per frame; each line re-renders only when its own message changes. The stream runs only while the chat is open. Settings sets the rate.
 - **Derived counts.** The sidebar shows each board's Todo count, and the window title shows the current board's. Move a card and every count changes at once, including in the title, which is kept by the core with no component involved.
@@ -33,80 +40,62 @@ pnpm smoke        # build, run hidden, run a few interactions and log what each 
 ## Layout
 
 ```
-src/renderer/src/
-  platform/
-    core/              no React: the query client and persistence, defineQuery, createSnapshotCache, runMutation, Disposer, onNextFrame
-    react/             createFeatureContext, createScopedContext
-    ui/                presentational components: plain values only
-  features/<name>/
-    core/              no React: stores, queries, writes, subscriptions; core/index.ts is its core API
-    hooks.ts           its context (private) and hooks
-    views/             components
-    index.ts           its React API: provider, hooks, views
-  features/
-    navigation/        where the user is (restored, saved on change)
-    cards/             the one owner of card data: queries, upsert; CardTile, CardDetail
-    boards/            where cards sit (IDs per column), filters, writes, live updates; BoardView   → cards, navigation
-    server/            the fake server's knobs; ServerSettings
-    chat/              per-board chat rooms: stream, per-frame batching, reducer; ChatPanel
-    shell/             the window title (core), the layout                → navigation, boards, server, chat
-  app/
-    compose.ts         builds every feature's core in dependency order; wiring only
-    Providers.tsx      hands each core to React, in build order
-architecture.mjs       the declared edges between features
+packages/
+  api/            the contract with the server: types and the Api interface
+  fake-server/    the fake backend; desktop runs it in Electron's main, web and mobile in-process
+  core/           everything every app shares; runs on every platform (no DOM, no React Native)
+    src/platform/core/    no React: the query client and persistence, defineStore, defineQuery, …
+    src/platform/react/   createFeatureContext, createScopedContext, selectFrom
+    src/features/<name>/
+      core/               no React: stores, queries, writes, subscriptions; core/index.ts is its core API
+      hooks.ts            its context (private) and hooks
+      index.ts            its React API: provider and hooks, everything its views read
+    src/app/              composeShared, SharedProviders, startApp
+  ui-dom/         DOM views: src/features/<name>/ (index.ts exports them), src/ui/ (presentational), styles.css
+  ui-native/      React Native views: the same features and hooks, src/ui/ (presentational)
+apps/
+  desktop/        Electron. src/main (the fake server over IPC), src/preload, src/renderer/src:
+                    app/       compose (shared features + title + server) and providers
+                    shell/     the layout: sidebar, board or settings, side panel
+                    features/server/   a desktop-only feature: the fake server's knobs, in Settings
+  web/            Vite. app/compose (shared features + title), shell/ (board tabs, board, side panel)
+  mobile/         Expo. App.tsx (shared features only), shell/ (board tabs, then one screen)
+architecture.mjs  the declared edges between features, wherever each lives
+types/universal.d.ts  the globals universal packages may use (timers, animation frames, console)
 ```
+
+The features: `navigation` (where the user is), `cards` (the one owner of card data), `boards` (where cards sit, filters, writes, live updates, the current board), `chat` (per-board rooms: stream, per-frame batching, reducer), `title` (the window or tab title, composed by the apps that have one) and `server` (desktop only).
+
+A feature is a `features/<name>/` folder, and its name is its identity in every package. `packages/core/src/features/boards/`, `packages/ui-dom/src/features/boards/` and `packages/ui-native/src/features/boards/` are one feature: its core and hooks, and its views per platform. One manifest declares the edges between features, and one dependency-cruiser config checks every package and app against it.
+
+Each app builds its own composition: `composeShared` for the features every app has, then its own on top (`createTitle`, `createServer`). Its shell places the views; the views don't know which app they're in. What desktop shows in its side panel (the chat or the open card), mobile shows as the whole screen, from the same navigation state.
+
+The packages are TypeScript source (each `package.json` exports `src/`), compiled by each app's bundler, React Compiler included. React is one version for every app (the pnpm catalog), pinned to the Expo SDK's, since React Native needs an exact match.
 
 ### Adding a feature
 
-1. Create `features/<name>/core/` with a `create<Name>(deps)` factory and `core/index.ts`. Building it must do nothing: no fetching, no subscribing, no I/O. Always-on work goes in `start()`, which returns its cleanup.
-2. Add `hooks.ts` with `createFeatureContext` and the hooks other components read (made with `selectFrom` for a store), and `index.ts` exporting the provider, hooks and views.
-3. Declare it in `architecture.mjs`, with the features it may depend on. Undeclared folders and imports fail `pnpm lint`.
-4. Build it in `app/compose.ts` after its dependencies, and add its provider in `app/Providers.tsx`.
+1. Shared: create `packages/core/src/features/<name>/core/` with a `create<Name>(deps)` factory and `core/index.ts`. Building it must do nothing: no fetching, no subscribing, no I/O. Always-on work goes in `start()`, which returns its cleanup. Only one app: the same layout, in that app's `features/`.
+2. Add `hooks.ts` with `createFeatureContext` and its hooks (made with `selectFrom` for a store), and `index.ts` exporting the provider and every hook its views need.
+3. Add its views as `features/<name>/` in `ui-dom` and `ui-native`, each with an `index.ts`.
+4. Declare it in `architecture.mjs`, with the features it may depend on. Undeclared folders and imports fail `pnpm lint`.
+5. Build it in `composeShared` (or the app's compose) after its dependencies, and add its provider in build order.
 
 ### What enforces the structure
 
-| Rule                                                                                                                | Tool                                                                          |
-| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`)                                           | ESLint `no-restricted-imports` on `core/`                                     |
-| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` everywhere                                     |
-| Store writes go through named actions                                                                               | TypeScript: a defined store has no `setState`                                 |
-| A feature's core uses only other features' cores and the platform core                                              | dependency-cruiser `core-uses-cores`, `platform-core-is-react-free`           |
-| Every subscription's unsubscribe is kept (`subscribe`, `watch`)                                                     | ESLint `no-restricted-syntax` on `core/`                                      |
-| Hooks that read the query or mutation cache end in `Query` / `Mutation`                                             | ESLint `local/source-suffix`                                                  |
-| Query data is JSON-safe; every query is made with `defineQuery`                                                     | TypeScript (`defineQuery`) + ESLint `no-restricted-syntax`                    |
-| Hook rules, dependencies, and every React Compiler rule, at error                                                   | `eslint-plugin-react-hooks` (`recommended-latest`, warnings raised to errors) |
-| No import cycles, including type-only ones                                                                          | dependency-cruiser `no-cycles`                                                |
-| A feature imports only the features `architecture.mjs` lists, through `index.ts` or `core/index.ts`                 | dependency-cruiser `feature-edges:*`, `public-api-only`                       |
-| The platform imports no feature; features don't import the app                                                      | dependency-cruiser                                                            |
-| Factories take the features they use, never the composed app                                                        | ESLint `local/no-app-deps`                                                    |
-
-## Where each rule lives
-
-| Rule (see the notes)                                                 | Code                                                                                                                                       |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| React pushes intents, not values (1)                                 | views call `useBoardActions().moveCard(…)`, `useNavigationActions().selectCard(…)`                                                         |
-| Non-React work in the core (2, 9)                                    | the window title in `shell/core/shell.ts`; live updates in `boards/core/boards.ts`; saving the location in `navigation/core/navigation.ts` |
-| Stores: named actions, shallow-compared named hooks, `read`, `watch` | `platform/core/defineStore.ts`, `platform/react/select.ts`; used by `navigation`, `boards` and `chat`                                      |
-| Contexts carry handles (5)                                           | every provider in `app/Providers.tsx` holds a core that never changes                                                                      |
-| Leafiest reader, IDs as props (6)                                    | `BoardCard` and `CardTile` take a card ID and read their own entry; `ChatLine` takes a message ID                                          |
-| Hooks are the feature's API (7)                                      | `features/*/hooks.ts`, exported from `index.ts`                                                                                            |
-| Server data through TanStack Query, normalized (10)                  | `cards/core` owns cards; the board query upserts them and keeps IDs                                                                        |
-| Writes are core functions; status read by key (11)                   | `boards/core/boards.ts` with `runMutation`; `usePendingCardsMutation`, `useMoveErrorMutation`                                              |
-| High-frequency streams                                               | `chat/core/chat.ts` (per-frame batching), `chat/core/reduce.ts` (structural sharing), `chat/views/ChatPanel.tsx`                           |
-
-## What building it changed
-
-These came up while building and measuring the demo.
-
-1. **List rows need `memo`.** The compiler memoizes elements built in a component's body, but not the ones built in a `.map`. Without `memo`, every chat line re-rendered whenever the log did: 136 line renders per update, 28,829 in two seconds. With `memo` on the row, line renders match the events that touched a line (536 for 549 events). So components rendered from a list (`ChatLine`, `BoardCard`, `BoardLink`) are wrapped in `memo`, the one place we write memoization by hand.
-2. **A move renders only what changed.** One move renders its two columns and the moved card, out of eight cards. A column selects its IDs with `select`, which is structurally shared, so a column whose cards didn't change keeps its array.
-3. **Status by key replaces holding the mutation.** Writes run through `runMutation` (a `MutationObserver`, detached when done, so the finished mutation is garbage-collected). The UI reads pending creates and the latest move's error with `useMutationState` by key, so a write started outside React shows up the same way.
-4. **A hidden window gets no animation frames.** The stream flushes on the next frame, or after 50 ms, whichever comes first (`onNextFrame`). Otherwise the hidden smoke window never applied an event.
-5. **A shared derivation can just be a function.** The current board (`currentBoardId`) is cheap, so the window title (core) and the sidebar and shell (hooks) each call it. Nothing is stored.
-6. **Concurrent optimistic writes need three rules.** Roll back with an inverse patch, not a snapshot. Only roll back if the value is still the one this write set. Refetch only when the last write to the board settles, whatever its kind (one `isMutating` check over a shared mutation-key prefix).
-7. **A refetch already in flight can undo a write.** A create's result is written after cancelling the board's in-flight refetch.
-8. **Restored cache entries need the persisted `gcTime` too.** They're built from defaults, not from the query factories (`hydrateOptions`).
-9. **A restored ID can name something that's gone.** `currentBoardId` trusts a saved board until the list loads, then falls back to the first.
-10. **The server can stay denormalized.** `getBoard` returns every card embedded. The board's query splits it: content goes to the cards feature (`cards.upsert`), and the board's entry keeps only IDs per column.
-11. **Batching is the transport's job.** The preload sends every call made in the same tick as one IPC message, like tRPC's `httpBatchLink`.
-12. **The persister writes at most once a second.** A change made in the last second before quitting may not be saved.
+| Rule                                                                                                                 | Tool                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| The core, the API and the fake server use no DOM, Node or React Native                                               | TypeScript: their tsconfigs have only `types/universal.d.ts`                                                 |
+| A package uses only the packages and npm modules its `package.json` lists (so `core` can't reach `react-dom`)        | pnpm's strict layout + dependency-cruiser `not-to-unresolvable`                                              |
+| A feature imports only the features `architecture.mjs` lists, in any package                                         | dependency-cruiser `feature-edges:*`, `unknown-feature`                                                      |
+| Other code imports a feature through `index.ts` or `core/index.ts`; another package by its name, through its exports | dependency-cruiser `public-api-only`, `packages-by-name`, and the exports maps                               |
+| Packages don't import apps; the universal packages have no views; DOM and native views don't use each other          | dependency-cruiser `packages-dont-import-apps`, `universal-packages-have-no-views`, `views-are-per-platform` |
+| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`)                                            | ESLint `no-restricted-imports` on every `core/`                                                              |
+| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE`  | ESLint `no-restricted-imports` everywhere                                                                    |
+| Store writes go through named actions                                                                                | TypeScript: a defined store has no `setState`                                                                |
+| A feature's core uses only other features' cores and the platform core                                               | dependency-cruiser `core-uses-cores`, `platform-core-is-react-free`                                          |
+| Every subscription's unsubscribe is kept (`subscribe`, `watch`)                                                      | ESLint `no-restricted-syntax` on `core/`                                                                     |
+| Hooks that read the query or mutation cache end in `Query` / `Mutation`                                              | ESLint `local/source-suffix`                                                                                 |
+| Query data is JSON-safe; every query is made with `defineQuery`                                                      | TypeScript (`defineQuery`) + ESLint `no-restricted-syntax`                                                   |
+| Hook rules, dependencies, and every React Compiler rule, at error                                                    | `eslint-plugin-react-hooks` (`recommended-latest`, warnings raised to errors)                                |
+| No import cycles, including type-only ones                                                                           | dependency-cruiser `no-cycles`                                                                               |
+| The platform imports no feature; features don't import an app's composition root or shell                            | dependency-cruiser `platform-is-a-leaf`, `features-dont-import-the-app`                                      |

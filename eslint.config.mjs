@@ -6,10 +6,11 @@ import tseslint from "typescript-eslint";
 
 import local from "./lint/index.mjs";
 
-const CORE = ["src/renderer/src/features/*/core/**/*.ts", "src/renderer/src/platform/core/**/*.ts"];
+// Every feature's core, in any package or app, and the platform core.
+const CORE = ["{apps,packages}/**/features/*/core/**/*.ts", "packages/core/src/platform/core/**/*.ts"];
 
 // Stores are made with defineStore and read with selectFrom; only those two files touch zustand.
-const STORE_FILES = ["src/renderer/src/platform/core/defineStore.ts", "src/renderer/src/platform/react/select.ts"];
+const STORE_FILES = ["packages/core/src/platform/core/defineStore.ts", "packages/core/src/platform/react/select.ts"];
 const STORE_PATTERNS = [
   { group: ["zustand", "zustand/*"], message: "Define stores with platform/core/defineStore and make hooks with platform/react/select." },
   { group: ["**/platform/core/defineStore"], importNames: ["STORE"], message: "Only platform/react/select reads the zustand store." },
@@ -26,11 +27,11 @@ const CORE_PATHS = [
 ];
 
 export default defineConfig(
-  { ignores: ["out", "dist", "node_modules"] },
+  { ignores: ["**/out", "**/dist", "**/node_modules", "**/.expo"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["{apps,packages}/**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { "react-hooks": reactHooks, local },
     rules: {
@@ -41,7 +42,7 @@ export default defineConfig(
       "react-hooks/incompatible-library": "error",
       "react-hooks/unsupported-syntax": "error",
       "react-hooks/todo": "error",
-      "local/no-app-deps": ["error", { forbidden: ["ComposedApp"] }],
+      "local/no-app-deps": ["error", { forbidden: ["SharedApp", "DesktopApp"] }],
       "local/source-suffix": "error",
       "no-restricted-imports": ["error", { patterns: STORE_PATTERNS }],
       "no-restricted-syntax": ["error", DEFINE_QUERY],
@@ -71,7 +72,7 @@ export default defineConfig(
   },
   {
     // Presentational components take plain values and never import a feature.
-    files: ["src/renderer/src/platform/ui/**/*.{ts,tsx}"],
+    files: ["packages/ui-*/src/ui/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -87,11 +88,11 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/renderer/src/platform/react/select.ts"],
+    files: ["packages/core/src/platform/react/select.ts"],
     rules: { "no-restricted-imports": "off" },
   },
   {
-    files: ["lint/**/*.mjs", "*.config.{ts,mjs}"],
+    files: ["lint/**/*.mjs", "scripts/**/*.mjs", "**/*.config.{ts,mjs,js}"],
     languageOptions: { globals: globals.node },
   },
 );

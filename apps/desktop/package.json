@@ -1,0 +1,35 @@
+{
+  "name": "@state-demo/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The desktop app (Electron): every feature, the full shell, and the fake server in the main process.",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "smoke": "electron-vite build && SMOKE=1 electron ."
+  },
+  "dependencies": {
+    "@state-demo/api": "workspace:*",
+    "@state-demo/core": "workspace:*",
+    "@state-demo/fake-server": "workspace:*",
+    "@state-demo/ui-dom": "workspace:*",
+    "@tanstack/query-core": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "electron": "44.4.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

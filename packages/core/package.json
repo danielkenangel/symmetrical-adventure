@@ -1,0 +1,35 @@
+{
+  "name": "@state-demo/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Everything every app shares: each feature's core (no React) and its hooks (React, no DOM or React Native).",
+  "type": "module",
+  "exports": {
+    "./app": "./src/app/index.ts",
+    "./platform/core": "./src/platform/core/index.ts",
+    "./platform/react": "./src/platform/react/index.ts",
+    "./features/*/core": "./src/features/*/core/index.ts",
+    "./features/*": "./src/features/*/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@state-demo/api": "workspace:*",
+    "@tanstack/query-async-storage-persister": "catalog:",
+    "@tanstack/query-core": "catalog:",
+    "@tanstack/query-persist-client-core": "catalog:",
+    "use-sync-external-store": "^1.7.0",
+    "zustand": "catalog:"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "*",
+    "react": "*"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

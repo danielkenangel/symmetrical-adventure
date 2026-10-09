@@ -277,7 +277,7 @@ function createRoom(boardId: string) {
 ```
 
 ```tsx
-// features/chat/hooks.ts: the room comes from the panel's context
+// features/chat/hooks.tsx: the room comes from ChatRoomProvider, which the panel renders
 const select = selectFrom(useRoom);
 export const useMessageIds = select((s) => s.messageIds); // re-renders when messages are added, not edited
 export const useMessage = select((s, messageId: string) => s.messages[messageId]); // only when this message changes

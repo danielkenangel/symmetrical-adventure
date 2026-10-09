@@ -1,0 +1,29 @@
+{
+  "name": "@state-demo/ui-dom",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The DOM views: each feature's components and their hierarchy. No routing and no layout; each app's shell places them.",
+  "type": "module",
+  "exports": {
+    "./features/*": "./src/features/*/index.ts",
+    "./ui": "./src/ui/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@state-demo/api": "workspace:*",
+    "@state-demo/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "*",
+    "react": "*"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

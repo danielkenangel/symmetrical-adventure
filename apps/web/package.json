@@ -1,0 +1,30 @@
+{
+  "name": "@state-demo/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The web app: the boards and their chat, nothing else. Mock data from the fake server, in the page.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@state-demo/api": "workspace:*",
+    "@state-demo/core": "workspace:*",
+    "@state-demo/fake-server": "workspace:*",
+    "@state-demo/ui-dom": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

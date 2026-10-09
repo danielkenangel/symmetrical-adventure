@@ -1,0 +1,30 @@
+{
+  "name": "@state-demo/ui-native",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The React Native views: each feature's components and their hierarchy, reading the same hooks as ui-dom. No navigation and no layout; the mobile app's shell places them.",
+  "type": "module",
+  "exports": {
+    "./features/*": "./src/features/*/index.ts",
+    "./ui": "./src/ui/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@state-demo/api": "workspace:*",
+    "@state-demo/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "react-native": "catalog:",
+    "typescript": "catalog:"
+  }
+}
