@@ -6,8 +6,8 @@ import type { Server } from "./core";
 const [ServerProvider, useServer] = createFeatureContext<Server>("server");
 export { ServerProvider };
 
-export function useServerControls() {
-  return useQuery(useServer().queries.controls()).data;
+export function useServerControlsQuery() {
+  return useQuery(useServer().queries.controls());
 }
 
 export function useServerActions(): Server {

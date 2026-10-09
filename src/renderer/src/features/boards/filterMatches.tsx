@@ -1,15 +1,15 @@
 import { createContext, use, type ReactNode } from "react";
 
-import { useCardIdsWhere } from "../cards";
-import { useBoardCardIds, useBoardFilter } from "./hooks";
+import { useCardIdsWhereQuery } from "../cards";
+import { useBoardCardIdsQuery, useBoardFilter } from "./hooks";
 
 /** The cards matching the board's filter, or null when there's no filter. Read only through the hooks below. */
 const FilterMatchesContext = createContext<readonly string[] | null>(null);
 
 export function FilterMatchesProvider({ boardId, children }: { boardId: string; children: ReactNode }) {
   const filter = useBoardFilter(boardId).trim().toLowerCase();
-  const cardIds = useBoardCardIds(boardId);
-  const matches = useCardIdsWhere(filter ? cardIds : NO_IDS, (card) => card.title.toLowerCase().includes(filter));
+  const cardIds = useBoardCardIdsQuery(boardId).data ?? NO_IDS;
+  const matches = useCardIdsWhereQuery(filter ? cardIds : NO_IDS, (card) => card.title.toLowerCase().includes(filter)).data;
   return <FilterMatchesContext value={filter ? matches : null}>{children}</FilterMatchesContext>;
 }
 

@@ -1,12 +1,12 @@
 import { memo } from "react";
 
 import { Badge, cls, SkeletonLines } from "../../../platform/ui/primitives";
-import { useBoardList, useTodoCount } from "../../boards";
+import { useBoardListQuery, useTodoCountQuery } from "../../boards";
 import { useIsView, useNavigationActions } from "../../navigation";
-import { useCurrentBoardId } from "../hooks";
+import { useCurrentBoardIdQuery } from "../hooks";
 
 export function Sidebar() {
-  const boards = useBoardList().data;
+  const boards = useBoardListQuery().data;
   const settings = useIsView("settings");
   const { showSettings } = useNavigationActions();
   return (
@@ -26,9 +26,9 @@ export function Sidebar() {
  * sidebar stays live even while another board or Settings is on screen. A list row, so memo.
  */
 const BoardLink = memo(function BoardLink({ boardId, name }: { boardId: string; name: string }) {
-  const { data: count, isPending } = useTodoCount(boardId);
+  const { data: count, isPending } = useTodoCountQuery(boardId);
   const onBoardView = useIsView("board");
-  const current = useCurrentBoardId();
+  const current = useCurrentBoardIdQuery().data;
   const active = onBoardView && current === boardId;
   const { showBoard } = useNavigationActions();
   return (

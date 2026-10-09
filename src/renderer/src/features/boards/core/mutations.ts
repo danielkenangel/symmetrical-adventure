@@ -77,7 +77,7 @@ export function setWipLimitOptions({ api, queryClient, boardId }: MutationDeps) 
 
 /**
  * Creates a card. Not optimistic in the cache: while it's pending, the Todo column shows the
- * mutation's own input (read by key, `usePendingCards`), and nothing needs rolling back.
+ * mutation's own input (read by key, `usePendingCardsMutation`), and nothing needs rolling back.
  */
 export function createCardOptions({ api, queryClient, cards, boardId }: MutationDeps) {
   const key = boardKeys.board(boardId);

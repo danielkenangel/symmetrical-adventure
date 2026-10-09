@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { PanelHeader, SkeletonLines } from "../../../platform/ui/primitives";
-import { useCard, useComments } from "../hooks";
+import { useCardQuery, useCommentsQuery } from "../hooks";
 
 export interface CardDetailProps {
   cardId: string;
@@ -15,7 +15,7 @@ export interface CardDetailProps {
  * probably prefetched when the pointer passed over the card).
  */
 export function CardDetail({ cardId, onClose, fields }: CardDetailProps) {
-  const card = useCard(cardId).data;
+  const card = useCardQuery(cardId).data;
   return (
     <>
       <PanelHeader title={card?.title}>
@@ -37,7 +37,7 @@ export function CardDetail({ cardId, onClose, fields }: CardDetailProps) {
 }
 
 function Comments({ cardId, expected }: { cardId: string; expected: number }) {
-  const { data: comments, isPending } = useComments(cardId);
+  const { data: comments, isPending } = useCommentsQuery(cardId);
   if (isPending || !comments) return <SkeletonLines lines={expected} />;
   if (comments.length === 0) return <p className="muted">No comments yet.</p>;
   return (

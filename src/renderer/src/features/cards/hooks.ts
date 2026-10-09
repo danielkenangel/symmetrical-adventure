@@ -7,32 +7,34 @@ const [CardsProvider, useCards] = createFeatureContext<Cards>("cards");
 export { CardsProvider };
 
 /** One card's cache entry. Re-renders only when the fields this component reads change. */
-export function useCard(cardId: string) {
+export function useCardQuery(cardId: string) {
   return useQuery(useCards().queries.card(cardId));
 }
 
 /** Just the title: for components that filter or label by it. */
-export function useCardTitle(cardId: string): string | undefined {
-  return useQuery({ ...useCards().queries.card(cardId), select: (card) => card.title }).data;
+export function useCardTitleQuery(cardId: string) {
+  return useQuery({ ...useCards().queries.card(cardId), select: (card) => card.title });
 }
 
 /**
- * The IDs among `cardIds` whose card passes `test`, in order. Structurally shared: the same array
- * while the answer doesn't change, whichever cards changed.
+ * The IDs among `cardIds` whose card passes `test`, in order; a card still loading doesn't pass.
+ * Structurally shared: the same `data` while the answer doesn't change, whichever cards changed.
  */
-export function useCardIdsWhere(cardIds: readonly string[], test: (card: CardData) => boolean): readonly string[] {
+export function useCardIdsWhereQuery(cardIds: readonly string[], test: (card: CardData) => boolean) {
   const { queries } = useCards();
   return useQueries({
     queries: cardIds.map((cardId) => queries.card(cardId)),
-    combine: (results) =>
-      cardIds.filter((_, index) => {
+    combine: (results) => ({
+      data: cardIds.filter((_, index) => {
         const card = results[index]?.data;
         return card !== undefined && test(card);
       }),
+      isPending: results.some((result) => result.isPending),
+    }),
   });
 }
 
-export function useComments(cardId: string) {
+export function useCommentsQuery(cardId: string) {
   return useQuery(useCards().queries.comments(cardId));
 }
 

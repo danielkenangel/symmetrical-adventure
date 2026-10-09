@@ -37,6 +37,7 @@ export default defineConfig(
       "react-hooks/unsupported-syntax": "error",
       "react-hooks/todo": "error",
       "local/no-app-deps": ["error", { forbidden: ["ComposedApp"] }],
+      "local/source-suffix": "error",
       "no-restricted-imports": ["error", { patterns: STORE_PATTERNS }],
     },
   },

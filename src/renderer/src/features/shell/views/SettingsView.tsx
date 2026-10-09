@@ -1,10 +1,10 @@
 import { CACHE_STORAGE_KEY } from "../../../platform/core/queryClient";
 import { WipLimits } from "../../boards";
 import { ServerSettings } from "../../server";
-import { useCurrentBoardId } from "../hooks";
+import { useCurrentBoardIdQuery } from "../hooks";
 
 export function SettingsView() {
-  const boardId = useCurrentBoardId();
+  const boardId = useCurrentBoardIdQuery().data;
   return (
     <section className="settings">
       <h1>Settings</h1>

@@ -5,14 +5,22 @@ import { BoardSkeleton, cls } from "../../../platform/ui/primitives";
 import { CardTile } from "../../cards";
 import { useChatOpen, useIsSelectedCard, useNavigationActions } from "../../navigation";
 import { FilterMatchesProvider, useMatchingCardIds } from "../filterMatches";
-import { useBoardActions, useBoardFilter, useBoardName, useBoardPending, useColumn, useMoveError, usePendingCards } from "../hooks";
+import {
+  useBoardActions,
+  useBoardFilter,
+  useBoardNameQuery,
+  useBoardQuery,
+  useColumnQuery,
+  useMoveErrorMutation,
+  usePendingCardsMutation,
+} from "../hooks";
 
 /**
  * A board and its cards. Every component below takes IDs and reads its own slice, so a change
  * re-renders only the components whose slice changed.
  */
 export function BoardView({ boardId }: { boardId: string }) {
-  if (useBoardPending(boardId)) return <BoardSkeleton />;
+  if (useBoardQuery(boardId).isPending) return <BoardSkeleton />;
   return (
     <section className="board">
       <header className="board-header">
@@ -45,7 +53,7 @@ function ChatToggle() {
 }
 
 function BoardName({ boardId }: { boardId: string }) {
-  return <h1>{useBoardName(boardId)}</h1>;
+  return <h1>{useBoardNameQuery(boardId).data}</h1>;
 }
 
 function FilterInput({ boardId }: { boardId: string }) {
@@ -63,12 +71,12 @@ function FilterInput({ boardId }: { boardId: string }) {
 }
 
 function MoveError({ boardId }: { boardId: string }) {
-  const error = useMoveError(boardId);
+  const error = useMoveErrorMutation(boardId);
   return error && <div className="notice error">{error} The move was undone.</div>;
 }
 
 function ColumnView({ boardId, column }: { boardId: string; column: Column }) {
-  const { cardIds, limit } = useColumn(boardId, column);
+  const { cardIds, limit } = useColumnQuery(boardId, column).data ?? NO_COLUMN;
   const shownIds = useMatchingCardIds(cardIds);
   // The WIP limit counts the whole column, whatever the filter shows.
   const overLimit = limit !== null && cardIds.length > limit;
@@ -123,7 +131,7 @@ const BoardCard = memo(function BoardCard({ boardId, cardId, column }: { boardId
 });
 
 function PendingCards({ boardId }: { boardId: string }) {
-  return usePendingCards(boardId).map(({ id, title }) => (
+  return usePendingCardsMutation(boardId).map(({ id, title }) => (
     <div key={id} className="card ghost">
       {title}
     </div>
@@ -131,7 +139,7 @@ function PendingCards({ boardId }: { boardId: string }) {
 }
 
 function NewCard({ boardId }: { boardId: string }) {
-  const name = useBoardName(boardId);
+  const name = useBoardNameQuery(boardId).data;
   const { createCard } = useBoardActions();
   const [title, setTitle] = useState("");
   const submit = (event: FormEvent) => {
@@ -152,3 +160,5 @@ function NewCard({ boardId }: { boardId: string }) {
     </form>
   );
 }
+
+const NO_COLUMN = { cardIds: [] as readonly string[], limit: null };

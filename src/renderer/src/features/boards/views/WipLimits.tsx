@@ -1,13 +1,14 @@
 import { COLUMN_TITLES, COLUMNS, type Column } from "../../../../../shared/api";
-import { useBoardActions, useBoardName, useColumn } from "../hooks";
+import { useBoardActions, useBoardNameQuery, useColumnQuery } from "../hooks";
 
 const LIMITS = [null, 1, 2, 3, 4, 5, 6];
+const NO_COLUMN = { cardIds: [] as readonly string[], limit: null };
 
 /** Server-side settings that feed a derivation: each column's "over the limit" state. */
 export function WipLimits({ boardId }: { boardId: string }) {
   return (
     <section className="settings-group">
-      <h2>Work-in-progress limits: {useBoardName(boardId)}</h2>
+      <h2>Work-in-progress limits: {useBoardNameQuery(boardId).data}</h2>
       <div className="fields">
         {COLUMNS.map((column) => (
           <WipLimit key={column} boardId={boardId} column={column} />
@@ -18,7 +19,7 @@ export function WipLimits({ boardId }: { boardId: string }) {
 }
 
 function WipLimit({ boardId, column }: { boardId: string; column: Column }) {
-  const { cardIds, limit } = useColumn(boardId, column);
+  const { cardIds, limit } = useColumnQuery(boardId, column).data ?? NO_COLUMN;
   const { setWipLimit } = useBoardActions();
   return (
     <label>

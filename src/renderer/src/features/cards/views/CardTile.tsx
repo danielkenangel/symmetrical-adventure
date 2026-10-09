@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cls } from "../../../platform/ui/primitives";
-import { useCard, useCardActions } from "../hooks";
+import { useCardActions, useCardQuery } from "../hooks";
 
 export interface CardTileProps {
   cardId: string;
@@ -13,7 +13,7 @@ export interface CardTileProps {
 
 /** A card in a list. Reads its own entry, and warms its comments on hover so opening it is instant. */
 export function CardTile({ cardId, selected, onSelect, actions }: CardTileProps) {
-  const { data: card, isPending } = useCard(cardId);
+  const { data: card, isPending } = useCardQuery(cardId);
   const { prefetchComments } = useCardActions();
   if (isPending || !card) return <div className="card ghost">Loading…</div>;
   return (

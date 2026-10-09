@@ -1,12 +1,12 @@
 import { SkeletonLines } from "../../../platform/ui/primitives";
-import { useServerActions, useServerControls } from "../hooks";
+import { useServerActions, useServerControlsQuery } from "../hooks";
 
 const LATENCIES = [0, 400, 1500];
 const CHAT_RATES = [0, 50, 300, 1000];
 
 /** Demo controls for the fake server. */
 export function ServerSettings() {
-  const controls = useServerControls();
+  const controls = useServerControlsQuery().data;
   const { setControls } = useServerActions();
   return (
     <section className="settings-group">

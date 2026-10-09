@@ -1,15 +1,15 @@
 import { BoardSkeleton } from "../../../platform/ui/primitives";
-import { BoardView, SelectedCard, useBoardList, useOpenCardId } from "../../boards";
+import { BoardView, SelectedCard, useBoardListQuery, useOpenCardIdQuery } from "../../boards";
 import { ChatPanel } from "../../chat";
 import { useChatOpen, useView } from "../../navigation";
-import { useCurrentBoardId } from "../hooks";
+import { useCurrentBoardIdQuery } from "../hooks";
 import { SettingsView } from "./SettingsView";
 import { Sidebar } from "./Sidebar";
 
 /** The layout: the sidebar, the board or the settings, and a side panel for the board. */
 export function Shell() {
   const view = useView();
-  const boardId = useCurrentBoardId();
+  const boardId = useCurrentBoardIdQuery().data;
   return (
     <div className="shell">
       <Sidebar />
@@ -31,13 +31,13 @@ export function Shell() {
 /** One container for whatever the side panel shows: the chat, the open card, or nothing. */
 function SidePanel({ boardId }: { boardId: string }) {
   const chatOpen = useChatOpen();
-  const cardId = useOpenCardId(boardId);
+  const cardId = useOpenCardIdQuery(boardId).data;
   if (!chatOpen && !cardId) return null;
   return <aside className="side-panel">{chatOpen ? <ChatPanel boardId={boardId} /> : <SelectedCard boardId={boardId} />}</aside>;
 }
 
 function NoBoard() {
-  const { isPending, error } = useBoardList();
+  const { isPending, error } = useBoardListQuery();
   if (isPending) return <BoardSkeleton />;
   if (error) return <p className="notice error">Couldn&apos;t load boards: {error.message}</p>;
   return <p className="muted">No boards yet.</p>;
