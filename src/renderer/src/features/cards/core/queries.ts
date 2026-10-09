@@ -1,4 +1,5 @@
 import type { Api, Card, Comment } from "../../../../../shared/api";
+import { defineQuery } from "../../../platform/core/defineQuery";
 import { persisted } from "../../../platform/core/queryClient";
 
 /** Private to the cards feature: other features resolve cards through its API, not its keys. */
@@ -18,13 +19,15 @@ export function toCardData({ id, boardId, title, assignee, commentCount }: Card)
 export function createCardQueries(api: Api) {
   return {
     // Usually already filled from the board's response (see `upsert`); fetched on its own when not.
-    card: (cardId: string) => ({
-      queryKey: cardKeys.card(cardId),
-      queryFn: async (): Promise<CardData> => toCardData(await api.getCard(cardId)),
-      ...persisted,
-    }),
+    card: (cardId: string) =>
+      defineQuery({
+        queryKey: cardKeys.card(cardId),
+        queryFn: async (): Promise<CardData> => toCardData(await api.getCard(cardId)),
+        ...persisted,
+      }),
     // Not persisted: behind a click, and cheap to load.
-    comments: (cardId: string) => ({ queryKey: cardKeys.comments(cardId), queryFn: (): Promise<Comment[]> => api.getComments(cardId) }),
+    comments: (cardId: string) =>
+      defineQuery({ queryKey: cardKeys.comments(cardId), queryFn: (): Promise<Comment[]> => api.getComments(cardId) }),
   };
 }
 

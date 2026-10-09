@@ -45,7 +45,7 @@ views/ hooks/ (per feature)   React
 7. **A feature's contexts are private; its hooks are its API.** To read a feature's data, import its hook from its `index.ts`. The import graph is the dependency graph, checked against `architecture.mjs` as in RFC 1.
 8. **Provider nesting follows build order.** A provider reads only contexts above it, so the provider tree is a composition root and can't express a cycle.
 9. **"When X changes, do Y" lives in the core.** It's a store or query-cache subscription, owned by a core scope and disposed with it. Effects in components are only for UI work: focus, scrolling, measuring, imperative DOM.
-10. **Server data uses TanStack Query as intended.** `useQuery` in hooks, one observer per mounted reader. Normalization stays: the owner of an entity type upserts entities found in other responses, and readers resolve them by ID (`useCard(id)`).
+10. **Server data uses TanStack Query as intended.** `useQuery` in hooks, one observer per mounted reader. Normalization stays: the owner of an entity type upserts entities found in other responses, and readers resolve them by ID (`useCardQuery(id)`). A hook that reads the query cache, directly or through another such hook, ends in `Query` and returns the query result (`const { data: name } = useBoardNameQuery(boardId)`); one that reads the mutation cache ends in `Mutation`. So a call site shows which values are server data that can be pending or failed. Query options are made with `defineQuery` (`platform/core/defineQuery.ts`), whose `queryFn` must return JSON-safe data: structural sharing only reuses plain objects and arrays, and persisted queries go through JSON.
 11. **Writes are core functions.** One function runs the mutation and the client-side effects together. It works the same from a click or from non-React code. The UI reads pending and error state by mutation key.
 12. **The compiler's ESLint plugin is an error, not a warning.** A component the compiler bails out on falls back to plain re-renders without any visible sign, so lint must catch it.
 13. **Components rendered from a list are wrapped in `memo`.** The compiler memoizes elements built in a component's body, but not the ones built in a `.map`, so without `memo` every row re-renders whenever the list does. Measured in the demo's chat: 136 line renders per update without it, one render per changed message with it. This is the one place memoization is written by hand.
@@ -64,8 +64,7 @@ export function createBoards(deps: BoardsDeps) {
     initialState: { filters: {} } as BoardsState,
     actions: (set) => ({
       // The label is explicit, so a write after an await is still named correctly.
-      setFilter: (boardId: string, filter: string) =>
-        set("setFilter", (s) => ({ filters: { ...s.filters, [boardId]: filter } })),
+      setFilter: (boardId: string, filter: string) => set("setFilter", (s) => ({ filters: { ...s.filters, [boardId]: filter } })),
     }),
   });
   const actions = { ...store.actions, moveCard, createCard, setWipLimit }; // store writes and mutations alike
@@ -81,7 +80,12 @@ Every subscription returns an unsubscribe, which goes into the owning scope's `D
 
 ```ts
 // A store field changed: save it. watch calls back only when the selection changes.
-disposer.add(boards.store.watch((s) => s.filters, (filters) => storage.setItem("filters", JSON.stringify(filters))));
+disposer.add(
+  boards.store.watch(
+    (s) => s.filters,
+    (filters) => storage.setItem("filters", JSON.stringify(filters)),
+  ),
+);
 
 // Several fields: a tuple, compared shallowly. fireImmediately runs it once on start.
 disposer.add(
@@ -113,8 +117,8 @@ disposer.add(
 ```ts
 const filterOf = boards.store.read((s, boardId: string) => s.filters[boardId] ?? ""); // client state: a reader
 const filter = filterOf(boardId);
-const cached = queryClient.getQueryData(boardKeys.board(boardId));  // server data, if cached
-const board = await queryClient.ensureQueryData(boardQueries.board(boardId)); // server data, fetched if needed
+const cached = queryClient.getQueryData(boardKeys.board(boardId)); // server data, if cached
+const board = await queryClient.query(boardQueries.board(boardId)); // server data, fetched if missing or stale
 ```
 
 ### Reading from React: handle in context, slice in the leaf
@@ -141,12 +145,12 @@ Every hook is named and exported; components never pass a selector. `useBoardsSt
 ```tsx
 // Lists pass IDs; the leaf resolves its own data.
 function Column({ boardId, column }: { boardId: string; column: Column }) {
-  const { cardIds } = useColumn(boardId, column);
+  const cardIds = useColumnQuery(boardId, column).data?.cardIds ?? [];
   return cardIds.map((id) => <CardTile key={id} cardId={id} />);
 }
 
 function CardTile({ cardId }: { cardId: string }) {
-  const card = useCard(cardId); // one cache entry; re-renders only when this card changes
+  const card = useCardQuery(cardId).data; // one cache entry; re-renders only when this card changes
   return <div className="card">{card?.title}</div>;
 }
 ```
@@ -188,7 +192,7 @@ moveCard(boardId: string, cardId: string, column: Column): Promise<void> {
 },
 
 // features/boards/hooks.ts: a leaf reads status by key, not by holding the mutation
-export function usePendingCards(boardId: string) {
+export function usePendingCardsMutation(boardId: string) {
   return useMutationState({
     filters: { mutationKey: boardKeys.create(boardId), status: "pending" },
     select: (mutation) => ({ id: mutation.mutationId, title: mutation.state.variables as string }),
@@ -248,7 +252,11 @@ function ChatLog() {
 // memo: a list row (rule 13). Without it, every line re-renders whenever the log does.
 const ChatLine = memo(function ChatLine({ messageId }: { messageId: string }) {
   const message = useMessage(messageId);
-  return <div className="chat-line"><b>{message.author}</b> {message.text}</div>;
+  return (
+    <div className="chat-line">
+      <b>{message.author}</b> {message.text}
+    </div>
+  );
 });
 ```
 
@@ -256,16 +264,18 @@ Measured while building the demo, with temporary render counters (since removed)
 
 ## Enforcement
 
-| Rule | Tool |
-|---|---|
-| `core/` imports no React packages | ESLint `no-restricted-imports` on `core/` folders |
-| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` on every file |
-| Store writes go through actions | TypeScript: a defined store has no `setState` |
-| A feature's core uses only other features' cores (`core/index.ts`) and the platform core | dependency-cruiser `core-uses-cores` |
-| Every subscription's unsubscribe is kept (`subscribe`, `watch`) | ESLint `no-restricted-syntax` on `core/` folders |
-| Features import only declared features, through `index.ts` or `core/index.ts`; no cycles | dependency-cruiser (`architecture.mjs`), carried over from RFC 1 |
-| Hook rules, dependencies, and every compiler rule | `eslint-plugin-react-hooks` `recommended-latest`, with its warnings raised to errors |
-| Factories take the features they use, never the composed app | `local/no-app-deps`, carried over |
+| Rule                                                                                                                | Tool                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `core/` imports no React packages                                                                                   | ESLint `no-restricted-imports` on `core/` folders                                                                             |
+| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` on every file                                                                                  |
+| Store writes go through actions                                                                                     | TypeScript: a defined store has no `setState`                                                                                 |
+| A feature's core uses only other features' cores (`core/index.ts`) and the platform core                            | dependency-cruiser `core-uses-cores`                                                                                          |
+| Every subscription's unsubscribe is kept (`subscribe`, `watch`)                                                     | ESLint `no-restricted-syntax` on `core/` folders                                                                              |
+| Hooks that read the query or mutation cache end in `Query` / `Mutation`                                             | ESLint `local/source-suffix` (`lint/rules/source-suffix.mjs`)                                                                 |
+| Query data is JSON-safe; every query is made with `defineQuery`                                                     | TypeScript: `defineQuery` rejects non-JSON-safe data; ESLint `no-restricted-syntax` rejects a `queryFn` outside `defineQuery` |
+| Features import only declared features, through `index.ts` or `core/index.ts`; no cycles                            | dependency-cruiser (`architecture.mjs`), carried over from RFC 1                                                              |
+| Hook rules, dependencies, and every compiler rule                                                                   | `eslint-plugin-react-hooks` `recommended-latest`, with its warnings raised to errors                                          |
+| Factories take the features they use, never the composed app                                                        | `local/no-app-deps`, carried over                                                                                             |
 
 Candidates to try: a rule against store setters or `setQueryData` inside `useEffect` (rule 1), and a rule that context values are stores, IDs or services (rule 5). Both are probably heuristics, not hard checks.
 

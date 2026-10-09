@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/query-core";
 
 import type { Api, ServerControls } from "../../../../../shared/api";
+import { defineQuery } from "../../../platform/core/defineQuery";
 import { mutationOptions, runMutation } from "../../../platform/core/mutations";
 
 export const serverKeys = {
@@ -16,7 +17,8 @@ export interface ServerDeps {
 export function createServer(deps: ServerDeps) {
   const { api, queryClient } = deps;
   const queries = {
-    controls: () => ({ queryKey: serverKeys.controls(), queryFn: (): Promise<ServerControls> => api.getControls(), staleTime: 0 }),
+    controls: () =>
+      defineQuery({ queryKey: serverKeys.controls(), queryFn: (): Promise<ServerControls> => api.getControls(), staleTime: 0 }),
   };
   // Optimistic, so the toggles respond instantly; the refetch on settle confirms.
   const setControlsOptions = mutationOptions({

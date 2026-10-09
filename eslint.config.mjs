@@ -14,6 +14,11 @@ const STORE_PATTERNS = [
   { group: ["zustand", "zustand/*"], message: "Define stores with platform/core/defineStore and make hooks with platform/react/select." },
   { group: ["**/platform/core/defineStore"], importNames: ["STORE"], message: "Only platform/react/select reads the zustand store." },
 ];
+// Every query is made with defineQuery, which checks that its data is JSON-safe.
+const DEFINE_QUERY = {
+  selector: ':not(CallExpression[callee.name="defineQuery"] > ObjectExpression) > Property[key.name="queryFn"]',
+  message: "Make query options with platform/core/defineQuery, so the data is checked to be JSON-safe.",
+};
 const CORE_PATHS = [
   { name: "react", message: "The core has no React. React depends on the core, not the reverse." },
   { name: "react-dom", message: "The core has no React." },
@@ -39,6 +44,7 @@ export default defineConfig(
       "local/no-app-deps": ["error", { forbidden: ["ComposedApp"] }],
       "local/source-suffix": "error",
       "no-restricted-imports": ["error", { patterns: STORE_PATTERNS }],
+      "no-restricted-syntax": ["error", DEFINE_QUERY],
     },
   },
   {
@@ -59,6 +65,7 @@ export default defineConfig(
           selector: "ExpressionStatement > CallExpression[callee.property.name=/^(subscribe|watch)$/]",
           message: "Keep the unsubscribe: disposer.add(x.subscribe(…)), or return it.",
         },
+        DEFINE_QUERY,
       ],
     },
   },

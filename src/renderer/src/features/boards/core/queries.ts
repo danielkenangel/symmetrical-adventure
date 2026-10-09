@@ -1,12 +1,12 @@
 import type { Api, Board, BoardSummary, Column, WipLimits } from "../../../../../shared/api";
 import { COLUMNS } from "../../../../../shared/api";
+import { defineQuery } from "../../../platform/core/defineQuery";
 import { persisted } from "../../../platform/core/queryClient";
 import type { Cards } from "../../cards/core";
 
 export const boardKeys = {
   list: () => ["boards"] as const,
   board: (boardId: string) => ["board", boardId] as const,
-
   // Mutation keys. Every write to a board shares the prefix, so "is any write to this board still
   // in flight?" is one isMutating({ mutationKey: writes(boardId) }) call.
   writes: (boardId: string) => ["board-write", boardId] as const,
@@ -42,16 +42,18 @@ function normalize(board: Board, cards: Cards): BoardData {
 /** Query factories. Every use of a board query goes through these, so they agree on keys and persistence. */
 export function createBoardQueries(api: Api, cards: Cards) {
   return {
-    list: () => ({
-      queryKey: boardKeys.list(),
-      queryFn: (): Promise<BoardSummary[]> => api.listBoards(),
-      ...persisted,
-    }),
-    board: (boardId: string) => ({
-      queryKey: boardKeys.board(boardId),
-      queryFn: async (): Promise<BoardData> => normalize(await api.getBoard(boardId), cards),
-      ...persisted,
-    }),
+    list: () =>
+      defineQuery({
+        queryKey: boardKeys.list(),
+        queryFn: (): Promise<BoardSummary[]> => api.listBoards(),
+        ...persisted,
+      }),
+    board: (boardId: string) =>
+      defineQuery({
+        queryKey: boardKeys.board(boardId),
+        queryFn: async (): Promise<BoardData> => normalize(await api.getBoard(boardId), cards),
+        ...persisted,
+      }),
   };
 }
 

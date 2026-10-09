@@ -65,9 +65,7 @@ Controllers that never received the root still reach it through a sibling:
 ```ts
 // SidekickConnectionController.ts
 reaction(
-  () =>
-    this.projectController.appStateController.billingController
-      .contextAwareSubscription,
+  () => this.projectController.appStateController.billingController.contextAwareSubscription,
   () => {
     const workspace = this.projectController.appStateController.workspace;
     // ...
@@ -149,9 +147,7 @@ await bootProgress.trackStep(BOOT_STEP.FEATURE_FLAGS_INIT, () =>
 );
 
 // only init after successful authentication, so that all required tokens are present.
-await bootProgress.trackStep(BOOT_STEP.APP_STATE_INIT, () =>
-  this.appStateController.init(currentOrganizationId, {/* ... */}),
-);
+await bootProgress.trackStep(BOOT_STEP.APP_STATE_INIT, () => this.appStateController.init(currentOrganizationId, {/* ... */}));
 ```
 
 ```ts
@@ -159,12 +155,8 @@ await bootProgress.trackStep(BOOT_STEP.APP_STATE_INIT, () =>
 // initialize SidekickController as early as possible
 this._sidekickController.init();
 // ...
-await trackStep(BOOT_STEP.WORKSPACE_INIT, () =>
-  this.workspace.init(opts?.overrideWorkspaceId),
-);
-await trackStep(BOOT_STEP.THREADS_INIT, () =>
-  this.sidekickController.threads.init(),
-);
+await trackStep(BOOT_STEP.WORKSPACE_INIT, () => this.workspace.init(opts?.overrideWorkspaceId));
+await trackStep(BOOT_STEP.THREADS_INIT, () => this.sidekickController.threads.init());
 ```
 
 Controllers that are created early but only initialized later spend part of their life half-built. Desktop has 26 `connectionController?.` checks for a field that is `null` until `init()` runs.
@@ -213,13 +205,7 @@ A feature's `index.ts` is its public API. Anything not exported there is private
 ```ts
 // features/boards/index.ts
 export { BoardModel } from "./BoardModel";
-export {
-  BoardsProvider,
-  createBoards,
-  useBoards,
-  type Boards,
-  type BoardsDeps,
-} from "./boards";
+export { BoardsProvider, createBoards, useBoards, type Boards, type BoardsDeps } from "./boards";
 export { boardKeys, type BoardsApi } from "./queries";
 export { BoardView } from "./views/BoardView";
 ```

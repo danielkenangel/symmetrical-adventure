@@ -34,7 +34,7 @@ pnpm smoke        # build, run hidden, run a few interactions and log what each 
 ```
 src/renderer/src/
   platform/
-    core/              no React: the query client and persistence, runMutation, Disposer, onNextFrame
+    core/              no React: the query client and persistence, defineQuery, runMutation, Disposer, onNextFrame
     react/             createFeatureContext
     ui/                presentational components: plain values only
   features/<name>/
@@ -64,32 +64,34 @@ architecture.mjs       the declared edges between features
 
 ### What enforces the structure
 
-| Rule | Tool |
-|---|---|
-| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`) | ESLint `no-restricted-imports` on `core/` |
-| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` everywhere |
-| Store writes go through named actions | TypeScript: a defined store has no `setState` |
-| A feature's core uses only other features' cores and the platform core | dependency-cruiser `core-uses-cores`, `platform-core-is-react-free` |
-| Every subscription's unsubscribe is kept (`subscribe`, `watch`) | ESLint `no-restricted-syntax` on `core/` |
-| Hook rules, dependencies, and every React Compiler rule, at error | `eslint-plugin-react-hooks` (`recommended-latest`, warnings raised to errors) |
-| No import cycles, including type-only ones | dependency-cruiser `no-cycles` |
-| A feature imports only the features `architecture.mjs` lists, through `index.ts` or `core/index.ts` | dependency-cruiser `feature-edges:*`, `public-api-only` |
-| The platform imports no feature; features don't import the app | dependency-cruiser |
-| Factories take the features they use, never the composed app | ESLint `local/no-app-deps` |
+| Rule                                                                                                                | Tool                                                                          |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| The core imports no React (`react`, `react-dom`, `@tanstack/react-query`)                                           | ESLint `no-restricted-imports` on `core/`                                     |
+| Only `platform/core/defineStore.ts` and `platform/react/select.ts` import zustand; only `select.ts` imports `STORE` | ESLint `no-restricted-imports` everywhere                                     |
+| Store writes go through named actions                                                                               | TypeScript: a defined store has no `setState`                                 |
+| A feature's core uses only other features' cores and the platform core                                              | dependency-cruiser `core-uses-cores`, `platform-core-is-react-free`           |
+| Every subscription's unsubscribe is kept (`subscribe`, `watch`)                                                     | ESLint `no-restricted-syntax` on `core/`                                      |
+| Hooks that read the query or mutation cache end in `Query` / `Mutation`                                             | ESLint `local/source-suffix`                                                  |
+| Query data is JSON-safe; every query is made with `defineQuery`                                                     | TypeScript (`defineQuery`) + ESLint `no-restricted-syntax`                    |
+| Hook rules, dependencies, and every React Compiler rule, at error                                                   | `eslint-plugin-react-hooks` (`recommended-latest`, warnings raised to errors) |
+| No import cycles, including type-only ones                                                                          | dependency-cruiser `no-cycles`                                                |
+| A feature imports only the features `architecture.mjs` lists, through `index.ts` or `core/index.ts`                 | dependency-cruiser `feature-edges:*`, `public-api-only`                       |
+| The platform imports no feature; features don't import the app                                                      | dependency-cruiser                                                            |
+| Factories take the features they use, never the composed app                                                        | ESLint `local/no-app-deps`                                                    |
 
 ## Where each rule lives
 
-| Rule (see the notes) | Code |
-|---|---|
-| React pushes intents, not values (1) | views call `useBoardActions().moveCard(…)`, `useNavigationActions().selectCard(…)` |
-| Non-React work in the core (2, 9) | the window title in `shell/core/shell.ts`; live updates in `boards/core/boards.ts`; saving the location in `navigation/core/navigation.ts` |
-| Stores: named actions, shallow-compared named hooks, `read`, `watch` | `platform/core/defineStore.ts`, `platform/react/select.ts`; used by `navigation`, `boards` and `chat` |
-| Contexts carry handles (5) | every provider in `app/Providers.tsx` holds a core that never changes |
-| Leafiest reader, IDs as props (6) | `BoardCard` and `CardTile` take a card ID and read their own entry; `ChatLine` takes a message ID |
-| Hooks are the feature's API (7) | `features/*/hooks.ts`, exported from `index.ts` |
-| Server data through TanStack Query, normalized (10) | `cards/core` owns cards; the board query upserts them and keeps IDs |
-| Writes are core functions; status read by key (11) | `boards/core/boards.ts` with `runMutation`; `usePendingCards`, `useMoveError` |
-| High-frequency streams | `chat/core/chat.ts` (per-frame batching), `chat/core/reduce.ts` (structural sharing), `chat/views/ChatPanel.tsx` |
+| Rule (see the notes)                                                 | Code                                                                                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| React pushes intents, not values (1)                                 | views call `useBoardActions().moveCard(…)`, `useNavigationActions().selectCard(…)`                                                         |
+| Non-React work in the core (2, 9)                                    | the window title in `shell/core/shell.ts`; live updates in `boards/core/boards.ts`; saving the location in `navigation/core/navigation.ts` |
+| Stores: named actions, shallow-compared named hooks, `read`, `watch` | `platform/core/defineStore.ts`, `platform/react/select.ts`; used by `navigation`, `boards` and `chat`                                      |
+| Contexts carry handles (5)                                           | every provider in `app/Providers.tsx` holds a core that never changes                                                                      |
+| Leafiest reader, IDs as props (6)                                    | `BoardCard` and `CardTile` take a card ID and read their own entry; `ChatLine` takes a message ID                                          |
+| Hooks are the feature's API (7)                                      | `features/*/hooks.ts`, exported from `index.ts`                                                                                            |
+| Server data through TanStack Query, normalized (10)                  | `cards/core` owns cards; the board query upserts them and keeps IDs                                                                        |
+| Writes are core functions; status read by key (11)                   | `boards/core/boards.ts` with `runMutation`; `usePendingCardsMutation`, `useMoveErrorMutation`                                              |
+| High-frequency streams                                               | `chat/core/chat.ts` (per-frame batching), `chat/core/reduce.ts` (structural sharing), `chat/views/ChatPanel.tsx`                           |
 
 ## What building it changed
 
