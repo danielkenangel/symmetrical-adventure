@@ -2,8 +2,9 @@ import { memo, useState, type FormEvent } from "react";
 
 import { COLUMN_TITLES, COLUMNS, type Column } from "../../../../../shared/api";
 import { BoardSkeleton, cls } from "../../../platform/ui/primitives";
-import { CardTile, useCardTitle } from "../../cards";
+import { CardTile } from "../../cards";
 import { useChatOpen, useIsSelectedCard, useNavigationActions } from "../../navigation";
+import { FilterMatchesProvider, useMatchingCardIds } from "../filterMatches";
 import {
   useBoardActions,
   useBoardFilter,
@@ -28,11 +29,13 @@ export function BoardView({ boardId }: { boardId: string }) {
         <NewCard boardId={boardId} />
       </header>
       <MoveError boardId={boardId} />
-      <div className="columns">
-        {COLUMNS.map((column) => (
-          <ColumnView key={column} boardId={boardId} column={column} />
-        ))}
-      </div>
+      <FilterMatchesProvider boardId={boardId}>
+        <div className="columns">
+          {COLUMNS.map((column) => (
+            <ColumnView key={column} boardId={boardId} column={column} />
+          ))}
+        </div>
+      </FilterMatchesProvider>
       <ChatToggle />
     </section>
   );
@@ -74,19 +77,21 @@ function MoveError({ boardId }: { boardId: string }) {
 
 function ColumnView({ boardId, column }: { boardId: string; column: Column }) {
   const { cardIds, limit } = useColumn(boardId, column);
+  const shownIds = useMatchingCardIds(cardIds);
+  // The WIP limit counts the whole column, whatever the filter shows.
   const overLimit = limit !== null && cardIds.length > limit;
   return (
     <div className={cls("column", overLimit && "over-limit")} data-testid="column">
       <div className="column-header">
         <span>{COLUMN_TITLES[column]}</span>
         <span className="count">
-          {cardIds.length}
+          {shownIds.length === cardIds.length ? cardIds.length : `${shownIds.length} of ${cardIds.length}`}
           {limit !== null && ` / ${limit}`}
         </span>
       </div>
       {overLimit && <div className="limit-warning">Over the WIP limit</div>}
       <div className="cards">
-        {cardIds.map((cardId) => (
+        {shownIds.map((cardId) => (
           <BoardCard key={cardId} boardId={boardId} cardId={cardId} column={column} />
         ))}
         {column === "todo" && <PendingCards boardId={boardId} />}
@@ -96,17 +101,13 @@ function ColumnView({ boardId, column }: { boardId: string; column: Column }) {
 }
 
 /**
- * A card as this board places it: the cards feature's tile, plus the board's move controls. Hides
- * itself when it doesn't match the filter, so the column doesn't need every card's title. A list
+ * A card as this board places it: the cards feature's tile, plus the board's move controls. A list
  * row, so memo (see ChatLine).
  */
 const BoardCard = memo(function BoardCard({ boardId, cardId, column }: { boardId: string; cardId: string; column: Column }) {
-  const filter = useBoardFilter(boardId).trim().toLowerCase();
-  const title = useCardTitle(cardId);
   const selected = useIsSelectedCard(cardId);
   const { selectCard } = useNavigationActions();
   const { moveCard } = useBoardActions();
-  if (filter && !title?.toLowerCase().includes(filter)) return null;
   const index = COLUMNS.indexOf(column);
   const previous = COLUMNS[index - 1];
   const next = COLUMNS[index + 1];

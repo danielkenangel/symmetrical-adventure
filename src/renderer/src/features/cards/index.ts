@@ -1,4 +1,4 @@
 // The cards feature's React API. Its core API is in ./core.
-export { CardsProvider, useCardTitle } from "./hooks";
+export { CardsProvider, useCardIdsWhere, useCardTitle } from "./hooks";
 export { CardDetail, type CardDetailProps } from "./views/CardDetail";
 export { CardTile, type CardTileProps } from "./views/CardTile";

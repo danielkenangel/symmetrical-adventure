@@ -1,6 +1,6 @@
 import { useMutationState, useQuery } from "@tanstack/react-query";
 
-import type { Column } from "../../../../shared/api";
+import { COLUMNS, type Column } from "../../../../shared/api";
 import { createFeatureContext } from "../../platform/react/featureContext";
 import { selectFrom } from "../../platform/react/select";
 import { useSelectedCardId } from "../navigation";
@@ -42,6 +42,15 @@ export function useColumn(boardId: string, column: Column): { cardIds: readonly 
     select: (board) => ({ cardIds: board.columns[column], limit: board.wipLimits[column] }),
   });
   return data ?? { cardIds: NO_IDS, limit: null };
+}
+
+/** Every card on the board, column by column. Structurally shared. */
+export function useBoardCardIds(boardId: string): readonly string[] {
+  const { data } = useQuery({
+    ...useBoards().queries.board(boardId),
+    select: (board) => COLUMNS.flatMap((column) => board.columns[column]),
+  });
+  return data ?? NO_IDS;
 }
 
 /** Which column a card is in on this board, or undefined if it isn't (or is no longer) here. */
